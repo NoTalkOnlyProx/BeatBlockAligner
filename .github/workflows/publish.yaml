@@ -1,0 +1,33 @@
+name: Publish
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build dist
+        run: |
+          npm run build
+          rm .gitignore
+
+      - name: Store dist artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: dist
+
+      - name: Publish current workdir (which contains generated content) to GitHub Pages
+        uses: rayluo/github-pages-overwriter@v1.3
+
+        with:
+          source-directory: dist
+          target-branch: gh-pages
