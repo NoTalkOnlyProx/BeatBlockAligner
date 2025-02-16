@@ -7,6 +7,7 @@ export function sanePath(str : string) {
 
 export async function handleDropEvent(e : DragEvent) {
     e.preventDefault();
+    e.stopPropagation();
     console.log(e);
     let entries = [...e.dataTransfer!.items].map(
         (item : any) => {

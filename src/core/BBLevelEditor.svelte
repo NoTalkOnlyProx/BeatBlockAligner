@@ -34,6 +34,7 @@
     let startBeatControl : OptionalNumber;
     let offsetControl : OptionalNumber;
     let lbControl : OptionalNumber;
+    let vwavs : VariantWaveforms;
 
     function handleVariantChanged() {
         console.log("Switching to variant ", selectedVariant);
@@ -187,11 +188,21 @@
         e.preventDefault();
         e.stopPropagation();
     }
+
+    function handleClickTrackDrop(e : DragEvent) {
+        vwavs.handleClickTrackDrop(e);
+    }
+    function handleDropPrevent(e : DragEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="vflow"
     on:mouseup={onDragEnd}
     on:mousemove={onDrag}
+    on:drop={handleDropPrevent}
+    on:dragover={handleDropPrevent}
 >
     <div class="menubar" on:wheel={onMouseWheelPreventDefault}>
         <div class="menu">
@@ -263,10 +274,12 @@
         <div class="topmargin"></div>
         <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
             <Pane size={20}>
-                <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
-                    <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                    <VariantWaveforms bind:timeline style="z-index:50"></VariantWaveforms>
-                </TimelineZone>
+                <div on:drop={handleClickTrackDrop} style="width:100%; height:100%">
+                    <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                        <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
+                        <VariantWaveforms bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
+                    </TimelineZone>
+                </div>
             </Pane>
             <Pane>
                 <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">

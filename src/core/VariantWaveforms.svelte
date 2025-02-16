@@ -2,7 +2,7 @@
     import { handleDropEvent, loadAudioFile } from "src/utils/FileUtils";
     import type { BBSoundFile } from "./BBLevelLoader";
     import type { BBTimeLine, BBTimelineEvent } from "./BBTimeLine";
-    import type { LODAudioData } from "./SoundUtils";
+    import type { LODAudioData } from "../utils/SoundUtils";
     import TimelineLanes from "./TimelineLanes.svelte";
     import Waveform from "./Waveform.svelte";
     import type { BBPlay } from "./BBTypes";
@@ -37,13 +37,16 @@
     }
 
     async function onFilesDragged(e : CustomEvent, tle : BBTimelineEvent, i : number = -1) {
+        await addFilesToPlay(e.detail.files, tle, i)
+    }
+
+    async function addFilesToPlay(files : FileSystemEntry[], tle : BBTimelineEvent, i : number = -1) {
         let sound = soundInfo(timeline, tle);
 
         if (i == -1) {
             i = sound.clickTracks.length;
         }
 
-        let files : FileSystemEntry[] = e.detail.files;
         let soundFiles = files.filter(file=>file.fullPath.endsWith(".ogg"));
 
         for (let soundFile of soundFiles) {
@@ -52,6 +55,14 @@
         }
 
         timeline=timeline;
+    }
+
+    export async function handleClickTrackDrop(e : DragEvent) {
+        let playEvents = timeline.timeControlEvents.filter(tle => tle.event.type === "play");
+        if (playEvents.length === 1) {
+            let files = await handleDropEvent(e);
+            await addFilesToPlay(files, playEvents[0]);
+        }
     }
 
     //timeline.variant.sounds
