@@ -157,7 +157,6 @@
         offsetControl?.setValue(timeline.getOffset());
         lbControl?.setValue(timeline.getLoadBeat());
     }
-    
 
     function openSettings() {
         showSettings = !showSettings;

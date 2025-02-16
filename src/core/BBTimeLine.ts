@@ -739,7 +739,8 @@ export class BBTimeLine {
          * 
          * We also require the last two savepoints be less than 10 seconds old.
          */
-        if (this.undoHistory.length >= 2 &&
+        if (replaceIfSame &&
+            this.undoHistory.length >= 2 &&
             this.undoHistory[this.undoIndex].type === undoType &&
             this.undoHistory[this.undoIndex - 1].type === undoType &&
             (Date.now() - this.undoHistory[this.undoIndex ].time) < 10000 &&

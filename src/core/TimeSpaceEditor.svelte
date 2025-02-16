@@ -316,7 +316,7 @@
     }
 
     function startDragControl(event : MouseEvent, mustSave : boolean = false) {
-        if (event.button == 1) {
+        if (event.button != 0) {
             return;
         }
         if (!selectedControl) {
@@ -332,7 +332,7 @@
 
 
     function startDragBeat(event : MouseEvent) {
-        if (event.button == 1) {
+        if (event.button != 0) {
             return;
         }
         if (!selectedControl || selectedBI == null) {
@@ -353,7 +353,7 @@
     }
 
     function startDragControlDup(event : MouseEvent) {
-        if (event.button == 1) {
+        if (event.button != 0) {
             return;
         }
         if (!selectedControl) {
@@ -364,7 +364,7 @@
     }
 
     function startDragControlSplit(event : MouseEvent) {
-        if (event.button == 1) {
+        if (event.button != 0) {
             return;
         }
         if (!selectedControl) {
@@ -432,9 +432,29 @@
         choosingEvent = false;
     }
 
+    function handleRightClick(e : MouseEvent) {
+        e.preventDefault();
+        e.stopPropagation();
+        let mouseTime = mouseToTime(e.clientX);
+        let mouseBeat = timeline.timeToBeat(mouseTime);
+        if (snapToBeat) {
+            mouseBeat = Math.round(mouseBeat * beatGrid)/beatGrid;
+        }
+        let mouseBPM = timeline.beatToBPM(mouseBeat);
+        let setBPM : BBSetBPM = {
+            type: "setBPM",
+            time: mouseBeat,
+            bpm: mouseBPM,
+            angle: 0,
+        };
+        timeline.addEvent(setBPM, true);
+        timeline=timeline;
+    }
+
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="lane" bind:this={lane} on:mousemove={handleMouseMove} on:mouseleave={handleMouseExit}>
+<!-- svelte-ignore a11y-click-events-have-key-events -->
+<div class="lane" bind:this={lane} on:contextmenu={handleRightClick} on:mousemove={handleMouseMove} on:mouseleave={handleMouseExit}>
     {#each {length: indices} as _, bi_sub}
         <div
             class="marker"
