@@ -1,0 +1,70 @@
+<script lang="ts">
+    import { handleDropEvent, loadAudioFile } from "src/utils/FileUtils";
+    import type { BBSoundFile } from "./BBLevelLoader";
+    import type { BBTimeLine, BBTimelineEvent } from "./BBTimeLine";
+    import type { LODAudioData } from "./SoundUtils";
+    import TimelineLanes from "./TimelineLanes.svelte";
+    import Waveform from "./Waveform.svelte";
+    import type { BBPlay } from "./BBTypes";
+
+    export let timeline : BBTimeLine;
+
+    /* not incredibly efficient, but it hardly matters, and it's functional so svelte handles it
+     * nicely.
+     */
+
+    function startTime(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
+        return timeline.beatToTime(tle.realbeat ?? (tle.event.time ?? 0));
+    }
+    function mapStart(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
+        return timeline.timeToRel(startTime(timeline, tle));
+    }
+    function soundInfo(timeline : BBTimeLine, tle : BBTimelineEvent) : BBSoundFile {
+        return timeline.variant.sounds.get((tle.event as BBPlay).file)!;
+    }
+    function mapLength(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
+        let start = startTime(timeline, tle);
+        let sound = soundInfo(timeline, tle);
+        let end = start + sound.soundData.duration;
+        let startRel = timeline.timeToRel(start);
+        let endRel = timeline.timeToRel(end);
+        return endRel - startRel;
+    }
+
+    function mapRelativeLength(timeline : BBTimeLine, tle : BBTimelineEvent, ct : LODAudioData) {
+        let sound = soundInfo(timeline, tle);
+        return ct.duration/sound.soundData.duration * mapLength(timeline, tle);
+    }
+
+    async function onFilesDragged(e : CustomEvent, tle : BBTimelineEvent, i : number = -1) {
+        let sound = soundInfo(timeline, tle);
+
+        if (i == -1) {
+            i = sound.clickTracks.length;
+        }
+
+        let files : FileSystemEntry[] = e.detail.files;
+        let soundFiles = files.filter(file=>file.fullPath.endsWith(".ogg"));
+
+        for (let soundFile of soundFiles) {
+            let newSound = await loadAudioFile(soundFile as FileSystemFileEntry);
+            sound.clickTracks.splice(i++, 0, newSound);
+        }
+
+        timeline=timeline;
+    }
+
+    //timeline.variant.sounds
+</script>
+<TimelineLanes style={$$props.style}>
+    {#each timeline.timeControlEvents as tle}
+        {#if tle.event.type === "play"}
+            <Waveform allowdrop on:filesDragged={(e)=>onFilesDragged(e,tle)} start={mapStart(timeline, tle)} length={mapLength(timeline, tle)} data={soundInfo(timeline, tle).soundData} shown={!(tle.skipped)}></Waveform>
+            {#if soundInfo(timeline, tle).clickTracks.length > 0}
+                {#each soundInfo(timeline, tle).clickTracks as ct, i}
+                    <Waveform allowdrop on:filesDragged={(e)=>onFilesDragged(e,tle)} start={mapStart(timeline, tle)} length={mapRelativeLength(timeline, tle, ct)} data={ct}></Waveform>
+                {/each}
+            {/if}
+        {/if}
+    {/each}
+</TimelineLanes>

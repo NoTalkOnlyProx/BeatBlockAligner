@@ -1,0 +1,337 @@
+<script lang="ts">
+    import { Pane, Splitpanes } from 'svelte-splitpanes';
+    import TimelineZone from './TimelineZone.svelte';
+    import BBMiniMap from './BBMiniMap.svelte';
+    import { BBLevelLoader, type BBVariantFiles } from './BBLevelLoader';
+    import { onMount, onDestroy } from 'svelte';
+    import { BBTimeLine, type BBTimelineOperationMode } from './BBTimeLine';
+    import VariantWaveforms from './VariantWaveforms.svelte';
+    import TimelineLanes from './TimelineLanes.svelte';
+    import TimeSpaceEditor from './TimeSpaceEditor.svelte';
+    import EventEditor from './EventEditor.svelte';
+    import Crosshair from './Crosshair.svelte';
+    import TimeSpaceMarkers from './TimeSpaceMarkers.svelte';
+    import OptionalNumber from './OptionalNumber.svelte';
+    export let bbll : BBLevelLoader;
+    let maxzoom = 4000;
+    let zoom = 0.75;
+    let center = 50;
+    let variants : string[] = bbll.getVariantNames();
+    let selectedVariant = variants[0];
+    let variant : BBVariantFiles;
+    let minimap : BBMiniMap;
+    let timeline : BBTimeLine;
+    let eventEditor : EventEditor;
+    let tsEditor : TimeSpaceEditor;
+    let co : boolean = false;
+    let coTime : number = 0;
+    let showSettings = false;
+    let hasEnteredSettings = false;
+    let beatGrid = 4;
+    let controlMoveMode : BBTimelineOperationMode = "MoveKeepBeats";
+    let beatStretchMode : BBTimelineOperationMode = "StretchKeepAllBeats";
+    let snapToBeat = false;
+    let startBeatControl : OptionalNumber;
+    let offsetControl : OptionalNumber;
+    let lbControl : OptionalNumber;
+
+    function handleVariantChanged() {
+        console.log("Switching to variant ", selectedVariant);
+        variant = bbll.getVariantByName(selectedVariant);
+        timeline = new BBTimeLine(variant);
+        startBeatControl?.setValue(timeline.getStartBeat());
+        offsetControl?.setValue(timeline.getOffset());
+        lbControl?.setValue(timeline.getLoadBeat());
+    }
+    handleVariantChanged();
+
+    function handleSBChange(event : CustomEvent) {
+        timeline.setStartBeat(event.detail as number | null);
+        timeline = timeline;
+    }
+    function handleOFSChange(event : CustomEvent) {
+        timeline.setOffset(event.detail as number | null);
+        timeline = timeline;
+    }
+    function handleLBChange(event : CustomEvent) {
+        timeline.setLoadBeat(event.detail as number | null);
+        timeline = timeline;
+    }
+
+    /* Clamp zoom - This is a limitation of the waveform renderer. 
+     * We could get around this maybe with tighter math, but my capacity to care is not sufficient.
+     */
+    $: zoom = zoom > maxzoom ? maxzoom : zoom;
+
+    function onKeyDown(event : KeyboardEvent) {
+        if (event.key === 'Escape') {
+            if (eventEditor) {
+                if (eventEditor.onEscape()) {
+                    return;
+                }
+            }
+            
+            if (tsEditor) {
+                if (tsEditor.onEscape()) {
+                    return;
+                }
+            }
+            return;
+        }
+        
+        if (event.code === 'KeyZ' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+            handleUndo();
+            return;
+        }
+        
+        if (event.code === 'KeyY' && (event.ctrlKey || event.metaKey)) {
+            handleRedo();
+            return;
+        }
+        
+        if (event.code === 'KeyZ' && (event.ctrlKey || event.metaKey) && event.shiftKey) {
+            handleRedo();
+            return;
+        }
+    }
+
+    onMount(() => {
+        document.addEventListener('keydown', onKeyDown);
+	});
+
+    onDestroy(() => {
+        document.removeEventListener('keydown', onKeyDown);
+	});
+
+    /* Cascade these events to the minimap so that drags don't have to stay within it */
+    function onDragEnd(e : MouseEvent) {
+        minimap.onDragEnd(e);
+        tsEditor.onDragEnd(e);
+    }
+
+    function onDrag(e : MouseEvent) {
+        minimap.onDrag(e);
+        tsEditor.onDrag(e);
+    }
+
+    function handleUndo() {
+        timeline.undo();
+        timeline=timeline;
+        tsEditor.onUndo();
+        startBeatControl?.setValue(timeline.getStartBeat());
+        offsetControl?.setValue(timeline.getOffset());
+        lbControl?.setValue(timeline.getLoadBeat());
+    }
+
+    function handleRedo() {
+        timeline.redo();
+        timeline=timeline;
+        tsEditor.onUndo();
+        startBeatControl?.setValue(timeline.getStartBeat());
+        offsetControl?.setValue(timeline.getOffset());
+        lbControl?.setValue(timeline.getLoadBeat());
+    }
+    
+
+    function openSettings() {
+        showSettings = !showSettings;
+        hasEnteredSettings = false;
+    }
+
+    function onEnterSettings() {
+        if (showSettings) {
+            hasEnteredSettings = true;
+        }
+    }
+
+    function onExitSettings() {
+        if (hasEnteredSettings) {
+            hasEnteredSettings = false;
+            showSettings = false;
+        }
+    }
+
+    function save() {
+
+    }
+</script>
+<!-- svelte-ignore a11y-no-static-element-interactions -->
+<div class="vflow"
+    on:mouseup={onDragEnd}
+    on:mousemove={onDrag}
+>
+    <div class="menubar">
+        <div class="menu">
+            <select class="variantselect" bind:value={selectedVariant} on:change={handleVariantChanged}>
+                {#each variants as vname}<option value={vname}>{"variant: " + vname}</option>{/each}
+            </select>
+            <button class="mmbutton" class:enabled={timeline.canUndo} on:click={handleUndo}>Undo</button>
+            <button class="mmbutton" class:enabled={timeline.canRedo} on:click={handleRedo}>Redo</button>
+            <button class="mmbutton enabled" on:click={openSettings}>Settings</button>
+            <button class="mmbutton enabled" on:click={save}>Save</button>
+            <div class="settingszone" class:hidden={!showSettings}  on:mouseenter={onEnterSettings} on:mouseleave={onExitSettings}>
+                <div>
+                    Beat grid:
+                    <select bind:value={beatGrid}>
+                        <option value={1}>beat</option>
+                        <option value={2}>1/2 beat</option>
+                        <option value={3}>1/3 beat</option>
+                        <option value={4}>1/4 beat</option>
+                        <option value={5}>1/5 beat</option>
+                        <option value={6}>1/6 beat</option>
+                        <option value={7}>1/7 beat</option>
+                        <option value={8}>1/8 beat</option>
+                        <option value={9}>1/9 beat</option>
+                        <option value={10}>1/10 beat</option>
+                        <option value={11}>1/11 beat</option>
+                        <option value={12}>1/12 beat</option>
+                        <option value={16}>1/16 beat</option>
+                    </select>
+                </div>
+                <div>
+                    <label>
+                        <input type="checkbox" bind:checked={snapToBeat} />
+                        Snap to beat?
+                    </label>
+                </div>
+                <div>
+                    BPM Setter Move Mode:
+                    <select bind:value={controlMoveMode}>
+                        <option value={"MoveKeepBeats"}>Preserve All Beats (snappable)</option>
+                        <option value={"MoveKeepTimes"}>Preserve All Times (snappable)</option>
+                    </select>
+                </div>
+                <div>
+                    Beat stretch mode:
+                    <select bind:value={beatStretchMode}>
+                        <option value={"StretchKeepAllBeats"}>Preserve All Beats (no snap)</option>
+                        <option value={"StretchKeepAllTimes"}>Preserve All Times (no snap)</option>
+                        <option value={"StretchKeepAfter"}>Preserve All After (snappable)</option>
+                    </select>
+                </div>
+                <div class="info">These settings behave strangely! This is accurate to BeatBlock's behavior. If the song's true start beat is greater than zero, the load beat has no effect!</div>
+                <div>
+                    <OptionalNumber value={timeline.getStartBeat()} bind:this={startBeatControl} on:change={handleSBChange}>Song start beat</OptionalNumber>
+                </div>
+                <div>
+                    <OptionalNumber value={timeline.getOffset()} bind:this={offsetControl} on:change={handleOFSChange}>Beat load offset</OptionalNumber>
+                </div>
+                <div>
+                    <OptionalNumber value={timeline.getLoadBeat()} bind:this={lbControl} on:change={handleLBChange}>Song load beat</OptionalNumber>
+                </div>
+            </div>
+        </div>
+        <div class="minimapsection">
+            <BBMiniMap bind:this={minimap} bind:center bind:zoom></BBMiniMap>
+        </div>
+    </div>
+    <div class="mainarea">
+        <div class="topmargin"></div>
+        <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
+            <Pane size={20}>
+                <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                    <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
+                    <VariantWaveforms bind:timeline style="z-index:50"></VariantWaveforms>
+                </TimelineZone>
+            </Pane>
+            <Pane>
+                <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                    <TimelineLanes>
+                        <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
+                        <EventEditor bind:this={eventEditor} bind:timeline></EventEditor>
+                    </TimelineLanes>
+                </TimelineZone>
+            </Pane>
+        </Splitpanes>
+        <Crosshair bind:co bind:coTime bind:zoom bind:center bind:timeline></Crosshair>
+    </div>
+</div>
+
+<style global lang="scss">
+    @use "bba-theme.scss";
+    @import "global.css";
+    .topmargin {
+        height:20px;
+    }
+    .mmbutton {
+        height:100%;
+        background-color: var(--main-input-bg-disabled);
+        color : var(--main-input-text-disabled);
+        display:block;
+        min-width:75px;
+    }
+    .mmbutton.enabled {
+        background-color: var(--main-input-bg);
+        color : var(--main-text-color);
+    }
+    .mmbutton.enabled:hover {
+        background-color: var(--main-input-bg-highlight);
+    }
+    .mmbutton.enabled:active {
+        background-color: var(--main-input-bg-active);
+    }
+    .variantselect {
+        height:100%;
+        background-color: var(--main-input-bg);
+    }
+    .menu {
+        display:flex;
+        overflow:visible;
+        position:relative;
+    }
+    .minimapsection {
+        flex-grow: 1;
+        min-width: 0;
+    }
+    .menubar {
+        display: flex;
+        height:50px;
+        overflow:visible;
+    }
+    .mainarea {
+        min-height: 0;
+        flex-grow:1;
+        position:relative;
+        overflow-x: hidden;
+        display:flex;
+        flex-direction: column;
+    }
+    .vflow {
+        display: flex;
+        flex-direction: column;
+        height:100%;
+    }
+    .settingszone.hidden {
+        display: none;
+    }
+    .settingszone {
+        padding:20px;
+        background-color: var(--highlight-bg-color);
+        border-color :  var(--highlight-text-color);
+        color: var(--highlight-text-color);
+        border-width:3px;
+        border-style:solid;
+        box-sizing: border-box;
+        position:absolute;
+        left:0px;
+        top:100%;
+        min-width:100%;
+        min-height:100px;
+        z-index: 200;
+    }
+    .settingszone > div.info {
+        white-space: normal;
+        color: var(--info-text-color);
+    }
+    .settingszone > div {
+        display: flex;
+        white-space: nowrap;
+    }
+    .settingszone input {
+        background-color: var(--main-input-bg);
+        color : var(--main-text-color);
+    }
+    .settingszone select {
+        background-color: var(--main-input-bg);
+    }
+</style>

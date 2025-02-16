@@ -1,8 +1,9 @@
 const path = require('path');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
-const {createSveltePreprocessor} = require("./svelte.config");
 const PathsPlugin = require("tsconfig-paths-webpack-plugin").default;
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const autoprefixer = require('autoprefixer');
+const sveltePreprocess = require("svelte-preprocess");
 
 module.exports = {
     mode: 'development',
@@ -26,7 +27,17 @@ module.exports = {
                 loader: 'svelte-loader',
                 options: {
                     emitCss: false,
-                    preprocess: createSveltePreprocessor(),
+                    preprocess: sveltePreprocess({
+                        tsconfigFile: "tsconfig.json",
+                        sourceMap: true,
+                        scss: true,
+                        sass: true,
+                        postcss: {
+                            plugins: [
+                                autoprefixer
+                            ]
+                        }
+                    }),
                 }
             },
             {
