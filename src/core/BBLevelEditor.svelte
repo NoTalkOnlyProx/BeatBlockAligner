@@ -154,6 +154,11 @@
     function save() {
 
     }
+
+    function home() {
+        zoom = 0.75;
+        center = 50;
+    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="vflow"
@@ -169,6 +174,7 @@
             <button class="mmbutton" class:enabled={timeline.canRedo} on:click={handleRedo}>Redo</button>
             <button class="mmbutton enabled" on:click={openSettings}>Settings</button>
             <button class="mmbutton enabled" on:click={save}>Save</button>
+            <button class="mmbutton enabled" on:click={home}>Home</button>
             <div class="settingszone" class:hidden={!showSettings}  on:mouseenter={onEnterSettings} on:mouseleave={onExitSettings}>
                 <div>
                     Beat grid:
