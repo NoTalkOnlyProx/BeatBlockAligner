@@ -53,6 +53,7 @@ export interface BBTimelineOperationState {
     targetTick?: number;
     targetTickOriginalTime?: number;
     entryMapping?: TimeBeatPoint[];
+    mustSave : boolean;
 }
 
 
@@ -449,7 +450,7 @@ export class BBTimeLine {
 
     operationState : BBTimelineOperationState | undefined;
     beginOperation(mode : BBTimelineOperationMode, snap : boolean = false, snapGrid : number,
-                   targetEvent : BBTimelineEvent | undefined = undefined) {
+                   targetEvent : BBTimelineEvent | undefined = undefined, mustSave : boolean) {
         let initialState : Map<BBTimelineEvent, BBTimelineEventInitialState> = new Map();
         let targetEventInitial = undefined;
         let nextEventInitial = undefined;
@@ -477,7 +478,8 @@ export class BBTimeLine {
             initialState,
             controlTarget: targetEventInitial,
             nextControl: nextEventInitial,
-            entryMapping: this.computeTimeSpace(targetEvent?.event)
+            entryMapping: this.computeTimeSpace(targetEvent?.event),
+            mustSave
         }
     }
 
@@ -494,15 +496,15 @@ export class BBTimeLine {
         if (!["StretchKeepAllBeats", "StretchKeepAllTimes", "StretchKeepAfter"].includes(mode)) {
             throw new Error("Invalid BPM/stretch mode");
         }
-        this.beginOperation(mode, snap, snapGrid, event);
+        this.beginOperation(mode, snap, snapGrid, event, true);
     }
 
     beginMoveOperation(event : BBTimelineEvent, mode : BBTimelineOperationMode,
-                       snap : boolean, snapGrid : number) {
+                       snap : boolean, snapGrid : number, mustSave : boolean) {
         if (!["MoveKeepBeats","MoveKeepTimes"].includes(mode)) {
             throw new Error("Invalid move mode");
         }
-        this.beginOperation(mode, snap, snapGrid, event);
+        this.beginOperation(mode, snap, snapGrid, event, mustSave);
     }
 
     continueStretchOperation(deltaTime : number) {
@@ -611,23 +613,22 @@ export class BBTimeLine {
     }
 
     finishStretchOperation(deltaTime : number) {
-        /* Really not much to this, actually, lol */
+        let opstate = this.operationState!;
         this.continueStretchOperation(deltaTime);
-        if (deltaTime != 0) {
+        if (deltaTime != 0 || opstate.mustSave) {
             this.saveUndoPoint("stretch", false);
         }
     }
 
     finishBPMOperation(finalBPM : number | null) {
-        /* Really not much to this, actually, lol */
         this.continueBPMOperation(finalBPM);
         this.saveUndoPoint("setBPM", true);
     }
 
     finishMoveOperation(deltaTime : number) {
-        /* Really not much to this, actually, lol */
+        let opstate = this.operationState!;
         this.continueMoveOperation(deltaTime);
-        if (deltaTime != 0) {
+        if (deltaTime != 0 || opstate.mustSave) {
             this.saveUndoPoint("moveControl", false);
         }
     }

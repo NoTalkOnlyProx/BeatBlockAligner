@@ -104,15 +104,40 @@
         document.removeEventListener('keydown', onKeyDown);
 	});
 
+    let isDragging = false;
+    let dragStart = 0;
+    let dragStartCenter = 0;
+
+    function onDragStart(e : MouseEvent) {
+        isDragging = true;
+        dragStart = e.clientX;
+        dragStartCenter = center;
+        e.preventDefault();
+    }
+
     /* Cascade these events to the minimap so that drags don't have to stay within it */
     function onDragEnd(e : MouseEvent) {
-        minimap.onDragEnd(e);
-        tsEditor.onDragEnd(e);
+        if (!isDragging) {
+            minimap.onDragEnd(e);
+            tsEditor.onDragEnd(e);
+        }
+        if (isDragging) {
+            isDragging = false;
+            e.preventDefault();
+        }
     }
 
     function onDrag(e : MouseEvent) {
-        minimap.onDrag(e);
-        tsEditor.onDrag(e);
+        if (!isDragging) {
+            minimap.onDrag(e);
+            tsEditor.onDrag(e);
+        }
+        if (isDragging)
+        {
+            let dx = e.clientX - dragStart;
+            let drel = (dx / window.innerWidth)/zoom * 100;
+            center = dragStartCenter - drel;
+        }
     }
 
     function handleUndo() {
@@ -196,16 +221,22 @@
         e.preventDefault();
         e.stopPropagation();
     }
+    function preventDragProp(event : MouseEvent) {
+        if (event.button != 1) {   
+            event.stopPropagation();
+        }
+    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="vflow"
+    on:mousedown={onDragStart}
     on:mouseup={onDragEnd}
     on:mousemove={onDrag}
     on:drop={handleDropPrevent}
     on:dragover={handleDropPrevent}
 >
     <div class="menubar" on:wheel={onMouseWheelPreventDefault}>
-        <div class="menu">
+        <div class="menu" on:mousedown={preventDragProp}>
             <select class="variantselect" bind:value={selectedVariant} on:change={handleVariantChanged}>
                 {#each variants as vname}<option value={vname}>{"variant: " + vname}</option>{/each}
             </select>

@@ -188,6 +188,7 @@
             choosingEvent = true;
         }
         e.preventDefault();
+        e.stopPropagation();
     }
     function selectControlKeyboard(e : KeyboardEvent, event : BBTimelineEvent) {
         if (e.key != "Enter") {
@@ -215,6 +216,7 @@
         selectedControl = event;
         choosingEvent = false;
     }
+
     function beatSelectable(bi : number,
                             selectedControl : BBTimelineEvent | null,
                             selectedBI : number | null,
@@ -236,9 +238,9 @@
     }
     function selectBeatMouse(e : MouseEvent, bi : number) {
         if (selectBeat(bi)) {
+            e.stopPropagation();
             e.preventDefault();
         }
-
     }
     function selectBeatKeyboard(e : KeyboardEvent, bi : number) {
         if (e.key != "Enter") {
@@ -307,18 +309,32 @@
     let draggingControl = false;
     let draggingBeat = false;
     let dragInitialTime = 0;
-    function startDragControl(event : MouseEvent) {
+    function preventDragProp(event : MouseEvent) {
+        if (event.button != 1) {   
+            event.stopPropagation();
+        }
+    }
+
+    function startDragControl(event : MouseEvent, mustSave : boolean = false) {
+        if (event.button == 1) {
+            return;
+        }
         if (!selectedControl) {
             return;
         }
         draggingControl = true;
         coTime = timeline.beatToTime(selectedControl!.event.time);
-        timeline.beginMoveOperation(selectedControl!, controlMoveMode, snapToBeat, beatGrid);
+        timeline.beginMoveOperation(selectedControl!, controlMoveMode, snapToBeat, beatGrid, mustSave);
         startDrag(event);
+        event.preventDefault();
+        event.stopPropagation();
     }
 
 
     function startDragBeat(event : MouseEvent) {
+        if (event.button == 1) {
+            return;
+        }
         if (!selectedControl || selectedBI == null) {
             return;
         }
@@ -337,14 +353,20 @@
     }
 
     function startDragControlDup(event : MouseEvent) {
+        if (event.button == 1) {
+            return;
+        }
         if (!selectedControl) {
             return;
         }
         selectedControl = timeline.addEvent(selectedControl!.event, false);
-        startDragControl(event);
+        startDragControl(event, true);
     }
 
     function startDragControlSplit(event : MouseEvent) {
+        if (event.button == 1) {
+            return;
+        }
         if (!selectedControl) {
             return;
         }
@@ -355,7 +377,7 @@
             time: selectedControl.event.time
         }
         selectedControl = timeline.addEvent(nevent, false);
-        startDragControl(event);
+        startDragControl(event, true);
     }
 
     export function onDragEnd(event : MouseEvent) {
@@ -424,11 +446,12 @@
             role="button"
             tabindex="0"
             aria-label={`Beat ${bi_sub + firstBeatIndex}`}
+            on:mousedown={preventDragProp}
             on:click={(e)=>selectBeatMouse(e, bi_sub + firstBeatIndex)}
             on:keydown={(e)=>selectBeatKeyboard(e, bi_sub + firstBeatIndex)}>
             <div class="line"></div>
             {#if isSelected(selectedBI, bi_sub + firstBeatIndex)}
-                <div class="controlzone">
+                <div class="controlzone" on:mousedown={preventDragProp}>
                     <div class="controlTitle">Tick {bi_sub + firstBeatIndex}</div>
                     <div class="buttonzone">
                         <button class="move" on:mousedown={startDragBeat}>Stretch</button>
@@ -462,10 +485,11 @@
             tabindex="0"
             aria-label={`Timeline Control Event ${i}`}
             on:click={(e)=>selectControlNear(e, event)}
-            on:keydown={(e)=>selectControlKeyboard(e, event)}>
+            on:keydown={(e)=>selectControlKeyboard(e, event)}
+            on:mousedown={preventDragProp}>
             <div class="line"></div>
             {#if selectedControl===event}
-                <div class="controlzone">
+                <div class="controlzone" on:mousedown={preventDragProp}>
                     <div class="controlTitle">{getDescription(event)}</div>
                     <div class="bpmcont">
                         <OptionalNumber value={getControlBPM(selectedControl)} on:change={handleSetBPM}>BPM</OptionalNumber>
