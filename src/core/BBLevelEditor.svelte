@@ -159,13 +159,41 @@
         zoom = 0.75;
         center = 50;
     }
+
+
+    /* Zoom functions */
+    function PTToRel(lt : number) {
+        return (lt - 0.5) / zoom * 100 + center;
+    }
+    function zoomOnPTZC(amount : number, ptzcenter : number) {
+        let og = PTToRel(ptzcenter);
+        zoom *= Math.pow(2, amount);
+        let ng = PTToRel(ptzcenter);
+        center -= ng - og;
+    }
+    function onMouseWheelZoom(e : WheelEvent) {
+        if(e.ctrlKey || e.shiftKey)
+        {
+            zoomOnPTZC(-e.deltaY/240, e.clientX/window.innerWidth);
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        center += (e.deltaX/20)/zoom;
+    }
+    function onMouseWheelPreventDefault(e : WheelEvent) {
+        /* I originally wanted to allow ctrl-zoom to still work as page zoom in non-timeline
+         * regions of the webpage, but alpha-testing has proven to me this was a bad idea.
+         */
+        e.preventDefault();
+        e.stopPropagation();
+    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="vflow"
     on:mouseup={onDragEnd}
     on:mousemove={onDrag}
 >
-    <div class="menubar">
+    <div class="menubar" on:wheel={onMouseWheelPreventDefault}>
         <div class="menu">
             <select class="variantselect" bind:value={selectedVariant} on:change={handleVariantChanged}>
                 {#each variants as vname}<option value={vname}>{"variant: " + vname}</option>{/each}
@@ -231,7 +259,7 @@
             <BBMiniMap bind:this={minimap} bind:center bind:zoom></BBMiniMap>
         </div>
     </div>
-    <div class="mainarea">
+    <div class="mainarea" on:wheel={onMouseWheelZoom}>
         <div class="topmargin"></div>
         <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
             <Pane size={20}>
