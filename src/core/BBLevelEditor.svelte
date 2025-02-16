@@ -285,6 +285,13 @@
                 <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
                     <TimelineLanes>
                         <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
+                    </TimelineLanes>
+                </TimelineZone>
+            </Pane>
+            <Pane>
+                <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                    <TimelineLanes>                        
+                        <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                         <EventEditor bind:this={eventEditor} bind:timeline></EventEditor>
                     </TimelineLanes>
                 </TimelineZone>

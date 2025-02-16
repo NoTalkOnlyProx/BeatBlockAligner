@@ -4,6 +4,7 @@ const PathsPlugin = require("tsconfig-paths-webpack-plugin").default;
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const autoprefixer = require('autoprefixer');
 const sveltePreprocess = require("svelte-preprocess");
+const CopyPlugin = require("copy-webpack-plugin");
 
 module.exports = {
     mode: 'development',
@@ -74,6 +75,11 @@ module.exports = {
             template: path.resolve(__dirname, 'src/aligner/aligner.html'),
             filename: "[name].html",
         }),
-        new MiniCssExtractPlugin()
+        new MiniCssExtractPlugin(),
+        new CopyPlugin({
+            patterns: [
+                { from: 'assets', to:"assets" }
+            ]
+        })
     ],
 };
