@@ -36,6 +36,7 @@
     export function onDragEnd(e : MouseEvent) {
         dragging = false;
         e.preventDefault();
+        e.stopPropagation();
     }
 
     function onDragStart(e : MouseEvent) {
@@ -43,12 +44,14 @@
         dragbase = mouseToGlobal(e.clientX);
         centerbase = center;
         e.preventDefault();
+        e.stopPropagation();
     }
     
     export function onDrag(e : MouseEvent) {
         if (dragging) {
             center = centerbase + (mouseToGlobal(e.clientX) - dragbase);
             e.preventDefault();
+            e.stopPropagation();
         }
     }
 

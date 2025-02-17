@@ -115,12 +115,13 @@
         dragStartCenter = center;
         e.preventDefault();
     }
-
+    
     /* Cascade these events to the minimap so that drags don't have to stay within it */
     function onDragEnd(e : MouseEvent) {
         if (!isDragging) {
             minimap.onDragEnd(e);
             tsEditor.onDragEnd(e);
+            eventEditor.onSelectFinish(e);
         }
         if (isDragging) {
             isDragging = false;
@@ -132,6 +133,7 @@
         if (!isDragging) {
             minimap.onDrag(e);
             tsEditor.onDrag(e);
+            eventEditor.onSelectContinue(e);
         }
         if (isDragging)
         {
