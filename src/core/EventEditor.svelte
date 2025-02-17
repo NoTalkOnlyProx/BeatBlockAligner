@@ -1,10 +1,14 @@
 <script lang="ts">
     import { BBTimeLine, type BBTimelineEvent } from './BBTimeLine';
+    import { isScrollSpecial, mouseToRelNumeric } from './UXUtils';
     export let timeline : BBTimeLine;
-    const angleHeight = 200;
-    const marginHeight = 50;
+    export let zoom : number;
+    export let center : number;
+    const angleHeight = 320;
+    const marginHeight = 40;
+    let lane : HTMLElement;
 
-    const iconMapping = {
+    const iconMapping : {[index: string] : string} = {
         play                : "assets/play.png",
         width               : "assets/width.png",
         showresults         : "assets/showresults.png",
@@ -39,10 +43,10 @@
 
     let beats = 0;
     $: beats = Math.ceil(timeline.lastBeat-timeline.firstBeat) * 4;
-    function mapBeat(beat : number) {
+    function beatToRel(beat : number) {
         return timeline.timeToRel(timeline.beatToTime(beat));
     }
-    function mapAngle(ang : number) {
+    function angToYPos(ang : number) {
         /* Wrap angle from -180 to 180 */
         if (ang < 0) {
             ang = (360 - ang%360);
@@ -54,22 +58,25 @@
 
         return ((ang/360) * angleHeight) + (angleHeight/2) + marginHeight;
     }
+    
+    function yPosToAng(ypos : number) {
+        return ((ypos - marginHeight) - angleHeight/2)/angleHeight * 360;
+    }
+
     export function onEscape() {
         return false;
     }
     function getIcon(event : BBTimelineEvent) {
-        if (event.event.type in iconMapping) {
-            return iconMapping[event.event.type]
-        }
-        return "assets/genericevent.png";
+        return iconMapping[event.event.type] ?? "assets/genericevent.png";
     }
 </script>
-<div class="lane">
+<div bind:this={lane} class="lane">
     {#each timeline.staticEvents as event}
         <div
             class="marker"
-            style:left={`calc(${mapBeat(event.event.time)}cqw)`}
-            style:top={`calc(${mapAngle(event.event.angle ?? 0)}px - 20px)`}
+            class:chart={event.fromChart}
+            style:left={`calc(${beatToRel(event.event.time)}cqw)`}
+            style:top={`calc(${angToYPos(event.event.angle ?? 0)}px - 20px)`}
         >
             <div class="icon fill">
                 <img class="bbicon" src={getIcon(event)} alt={event.event.type}/>
@@ -80,11 +87,13 @@
 </div>
 <style>
     .bbicon {
-
+        background-color: white;
+        width: 16px;
+        height: 16px;
     }
     .lane {
         width: 100cqw;
-        height: 300px;
+        height: 400px;
     }
     .marker {
         position: absolute;
@@ -92,8 +101,14 @@
         height: 40px;
         background-color: rgba(0,0,0,0);
     }
+    .marker:hover .fill, .marker.selected .fill {
+        background-color: white;
+    }
     .fill {
         background-color: yellow;
+    }
+    .chart > .fill{
+        background-color: rgb(0, 204, 255);
     }
     .icon {
         position: absolute;

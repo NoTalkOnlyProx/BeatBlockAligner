@@ -12,6 +12,7 @@
     import Crosshair from './Crosshair.svelte';
     import TimeSpaceMarkers from './TimeSpaceMarkers.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
+    import { mouseDeltaToRel, mouseToRelNumeric } from './UXUtils';
     export let bbll : BBLevelLoader;
     let maxzoom = 4000;
     let zoom = 0.75;
@@ -135,7 +136,7 @@
         if (isDragging)
         {
             let dx = e.clientX - dragStart;
-            let drel = (dx / window.innerWidth)/zoom * 100;
+            let drel = mouseDeltaToRel(dx, zoom);
             center = dragStartCenter - drel;
         }
     }
@@ -187,19 +188,16 @@
 
 
     /* Zoom functions */
-    function PTToRel(lt : number) {
-        return (lt - 0.5) / zoom * 100 + center;
-    }
-    function zoomOnPTZC(amount : number, ptzcenter : number) {
-        let og = PTToRel(ptzcenter);
+    function zoomOnMouse(amount : number, mx : number) {
+        let og = mouseToRelNumeric(mx, zoom, center);
         zoom *= Math.pow(2, amount);
-        let ng = PTToRel(ptzcenter);
+        let ng = mouseToRelNumeric(mx, zoom, center);
         center -= ng - og;
     }
     function onMouseWheelZoom(e : WheelEvent) {
         if(e.ctrlKey || e.shiftKey)
         {
-            zoomOnPTZC(-e.deltaY/240, e.clientX/window.innerWidth);
+            zoomOnMouse(-e.deltaY/240, e.clientX);
             e.preventDefault();
             e.stopPropagation();
         }
@@ -311,7 +309,7 @@
                     </TimelineZone>
                 </div>
             </Pane>
-            <Pane>
+            <Pane size={20}>
                 <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
                     <TimelineLanes>
                         <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
@@ -322,7 +320,7 @@
                 <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
                     <TimelineLanes>                        
                         <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                        <EventEditor bind:this={eventEditor} bind:timeline></EventEditor>
+                        <EventEditor bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
                     </TimelineLanes>
                 </TimelineZone>
             </Pane>

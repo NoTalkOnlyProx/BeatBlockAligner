@@ -2,7 +2,7 @@
     import {default as Timecode, type FRAMERATE} from 'smpte-timecode';
     import { onMount, onDestroy } from 'svelte';
     import type { BBTimeLine } from './BBTimeLine';
-    let mx : number;
+    import { mouseToRelNumeric, relToMouseNumeric } from './UXUtils';
     let ch : HTMLElement;
 
     let msg = "HAI";
@@ -15,36 +15,32 @@
     export let coTime : number = 0;
     export let co : boolean = false;
 
-    let rx = 0;
+    let mx = 0;
 
-    $: updateTime(rx, zoom, center, co, coTime, timeline);
+    $: updateTime(mx, zoom, center, co, coTime, timeline);
 
     onMount(() => {
         document.addEventListener('mousemove', handleMouseMove);
 	});
 
     function handleMouseMove(event : MouseEvent) {
-        rx = event.clientX/window.innerWidth;
+        mx = event.clientX;
     }
 
     function relToWindowRx(rel : number) {
         return ((rel - center)*zoom/100) + 0.5;
     }
 
-    function windowRxToRel(rx : number) {
-        return ((rx - 0.5)*100)/zoom + center;
-    }
-
-    function updateTime(rx : number, zoom : number, center: number, co : boolean, coTime: number, timeline : BBTimeLine) {
-        let crosshairTime = co ? coTime : timeline.relToTime(windowRxToRel(rx));
+    function updateTime(mx : number, zoom : number, center: number, co : boolean, coTime: number, timeline : BBTimeLine) {
+        let crosshairTime = co ? coTime : timeline.relToTime(mouseToRelNumeric(mx, zoom, center));
         let beat = timeline.timeToBeat(crosshairTime);
         let bpm = timeline.timeToBPM(crosshairTime);
         msg = `${beat.toFixed(4)}b (${crosshairTime.toFixed(4)}s / ${new Timecode(crosshairTime * 1000, 1000 as FRAMERATE)}) [${bpm} bpm]`;
         
-        let trx = relToWindowRx(timeline.timeToRel(crosshairTime));
         if (ch) {
             let rect = ch.parentElement!.getBoundingClientRect();
-            ch.style.left = (trx * window.innerWidth - rect.left) + "px";
+            let tmx = relToMouseNumeric(timeline.timeToRel(crosshairTime), zoom, center);
+            ch.style.left = (tmx - rect.left) + "px";
         }
     }
 

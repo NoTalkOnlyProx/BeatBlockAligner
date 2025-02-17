@@ -44,6 +44,8 @@ export interface BBLevel {
     events: BBEvent[]
 }
 
+export type BBChart = BBEvent[];
+
 export interface BBColor {
     r : number,
     g : number,

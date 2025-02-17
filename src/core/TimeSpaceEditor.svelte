@@ -2,6 +2,7 @@
     import { BBTimeLine, type BBTimelineEvent, type BBTimelineOperationMode } from './BBTimeLine';
     import type { BBPlay, BBSetBPM, BBSetsBPMEvent } from './BBTypes';
     import OptionalNumber from './OptionalNumber.svelte';
+    import { isScrollSpecial, mouseToRel, mouseToRelNumeric } from './UXUtils';
     export let timeline : BBTimeLine;
     export let zoom : number;
     export let center : number;
@@ -119,11 +120,6 @@
         tooltipVisible = false;
     }
 
-    function mouseToTime(mouseX : number) : number {
-        let laneRect = lane.getBoundingClientRect();
-        return timeline.relToTime((mouseX - laneRect.x)/laneRect.width * 100);
-    }
-
     function recomputeTooltip() {
         if (!lane) {
             return;
@@ -136,7 +132,7 @@
             let laneRect = lane.getBoundingClientRect();
             tooltipX = (mouseX - laneRect.x + 20) + "px";
             tooltipY = (mouseY - laneRect.y) + "px";
-            tooltipTime = mouseToTime(mouseX);
+            tooltipTime = timeline.relToTime(mouseToRel(mouseX, lane));
 
             
             let leftTimeRel = center - 50/zoom;
@@ -316,7 +312,7 @@
     }
 
     function startDragControl(event : MouseEvent, mustSave : boolean = false) {
-        if (event.button != 0) {
+        if (isScrollSpecial(event)) {
             return;
         }
         if (!selectedControl) {
@@ -330,9 +326,8 @@
         event.stopPropagation();
     }
 
-
     function startDragBeat(event : MouseEvent) {
-        if (event.button != 0) {
+        if (isScrollSpecial(event)) {
             return;
         }
         if (!selectedControl || selectedBI == null) {
@@ -344,6 +339,10 @@
         startDrag(event);
     }
 
+    function mouseToTime(mx : number) {
+        return timeline.relToTime(mouseToRelNumeric(mx, zoom, center));
+    }
+
     function startDrag(event : MouseEvent) {
         draggingAny = true;
         dragInitialTime = mouseToTime(event.clientX);
@@ -353,7 +352,7 @@
     }
 
     function startDragControlDup(event : MouseEvent) {
-        if (event.button != 0) {
+        if (isScrollSpecial(event)) {
             return;
         }
         if (!selectedControl) {
@@ -364,7 +363,7 @@
     }
 
     function startDragControlSplit(event : MouseEvent) {
-        if (event.button != 0) {
+        if (isScrollSpecial(event)) {
             return;
         }
         if (!selectedControl) {
@@ -417,7 +416,7 @@
         }
         if (draggingBeat) {
             timeline.continueStretchOperation(dragTime - dragInitialTime);
-            coTime = timeline.beatToTime(timeline.tickToBeat(selectedBI, beatGrid));
+            coTime = timeline.beatToTime(timeline.tickToBeat(selectedBI!, beatGrid));
         }
         timeline = timeline;
         event.preventDefault();

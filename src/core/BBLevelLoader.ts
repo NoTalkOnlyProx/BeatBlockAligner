@@ -1,6 +1,6 @@
 import type { LODAudioData } from "src/utils/SoundUtils";
 import type { BBTimelineEvent } from "./BBTimeLine";
-import type { BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } from "./BBTypes";
+import type { BBChart, BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } from "./BBTypes";
 import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
 
 const SupportedVersions = [14];
@@ -13,7 +13,7 @@ export interface BBVariantFiles {
     levelFile? : FileSystemEntry;
     chartFile? : FileSystemEntry;
     level : BBLevel;
-    chart : string;
+    chart : BBChart;
     data : BBVariant;
     sounds : Map<string, BBSoundFile>;
 }
@@ -110,7 +110,7 @@ export class BBLevelLoader {
                 },
                 events: [playEvent, endSongEvent]
         };
-        let chart = "";
+        let chart : BBChart = [];
         
         let sounds : Map<string, BBSoundFile> = new Map();
         sounds.set(soundFileName, {
@@ -194,7 +194,7 @@ export class BBLevelLoader {
             console.log("Chart File: ", chartFile.fullPath);
 
             let level = JSON.parse(await readFile(levelFile as FileSystemFileEntry) as string);
-            let chart = await readFile(chartFile as FileSystemFileEntry) as string;
+            let chart = JSON.parse(await readFile(chartFile as FileSystemFileEntry) as string);
 
             if (!this.validateLevel(level, loadFailed)) {
                 return false;

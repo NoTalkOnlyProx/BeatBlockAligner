@@ -7,6 +7,7 @@ import lzjs from 'lzjs';
 
 export interface BBTimelineEvent {
     event : BBEvent;
+    fromChart : boolean;
 
     /* Careful! These are only set for time-control events! */
     realbeat? : number;
@@ -69,7 +70,8 @@ export interface BBStartData {
 export interface BBTimelineUndoPoint {
     time: number;
     type: string;
-    data: string;
+    levelData: string;
+    chartData: string;
 }
 
 export class BBTimeLine {
@@ -107,6 +109,7 @@ export class BBTimeLine {
 
     loadEvents(computeBoundaries : boolean = false) {
         let level = this.variant.level;
+        let chart = this.variant.chart;
         
         this.timeControlEvents = [];
         this.markerEvents = [];
@@ -116,34 +119,15 @@ export class BBTimeLine {
 
         /* Sort in place */
         sortEvents(level.events);
+        sortEvents(chart);
+
 
         /* Aggregate / categorize events. */
         for (let event of level.events) {
-            this.registerEvent(event);
-
-            /* We only want to compute the boundaries on the very first run, after that keep them consistent
-             * soas not to mess with the user's zoom, etc. They don't actually matter, they just establish
-             * the definition of `zoom=1`.
-             */
-            if (computeBoundaries) {
-                if (event.time < this.firstBeat) {
-                    this.firstBeat = event.time;
-                }
-                if (event.time > this.lastBeat) {
-                    this.lastBeat = event.time;
-                }
-                let duration = (event as BBDurationEvent).duration;
-                if (duration) {
-                    let finalTime = event.time + duration;
-                    if (finalTime < this.firstBeat) {
-                        this.firstBeat = finalTime;
-                    }
-                    /* Yes, negative durations are possible. */
-                    if (finalTime > this.lastBeat) {
-                        this.lastBeat = finalTime;
-                    }
-                }
-            }
+            this.registerEvent(event, false, computeBoundaries);
+        }
+        for (let event of chart) {
+            this.registerEvent(event, true, computeBoundaries);
         }
 
         this.recomputeTimeSpace();
@@ -693,16 +677,22 @@ export class BBTimeLine {
         this.saveUndoPoint("deleteEvent", false);
     }
 
-    addEvent(event : BBEvent, saveUndo = true) : BBTimelineEvent {
+    addEvent(event : BBEvent, saveUndo = true, toChart : boolean = false) : BBTimelineEvent {
         let level = this.variant.level;
+        let chart = this.variant.chart;
 
         /* For good measure */
         let clone : BBEvent = {...event};
 
-        level.events.push(clone);
-        sortEvents(level.events);
+        if (toChart) {
+            chart.push(clone);
+            sortEvents(chart);
+        } else {
+            level.events.push(clone);
+            sortEvents(level.events);
+        }
 
-        let tlev = this.registerEvent(clone);
+        let tlev = this.registerEvent(clone, toChart, false);
 
         /* This is kinda bodgey, but I don't want to deal with direct detection pathways for this,
          * and adding an event is pretty rare.
@@ -717,8 +707,8 @@ export class BBTimeLine {
         return tlev;
     }
 
-    registerEvent(event : BBEvent) : BBTimelineEvent {
-        let tlev : BBTimelineEvent = {event};
+    registerEvent(event : BBEvent, fromChart : boolean = false, computeBoundaries : boolean = false) : BBTimelineEvent {
+        let tlev : BBTimelineEvent = {event, fromChart};
         this.lookup.set(event, tlev);
         this.allEvents.push(tlev);
         if (timeControlTypes.includes(event.type)) {
@@ -729,6 +719,31 @@ export class BBTimeLine {
                 this.markerEvents.push(tlev);
             }
         }
+
+        /* We only want to compute the boundaries on the very first run, after that keep them consistent
+             * soas not to mess with the user's zoom, etc. They don't actually matter, they just establish
+             * the definition of `zoom=1`.
+             */
+        if (computeBoundaries) {
+            if (event.time < this.firstBeat) {
+                this.firstBeat = event.time;
+            }
+            if (event.time > this.lastBeat) {
+                this.lastBeat = event.time;
+            }
+            let duration = (event as BBDurationEvent).duration;
+            if (duration) {
+                let finalTime = event.time + duration;
+                if (finalTime < this.firstBeat) {
+                    this.firstBeat = finalTime;
+                }
+                /* Yes, negative durations are possible. */
+                if (finalTime > this.lastBeat) {
+                    this.lastBeat = finalTime;
+                }
+            }
+        }
+
         return tlev;
     }
 
@@ -756,16 +771,16 @@ export class BBTimeLine {
         /* We store undo history as string to guarantee we always deep copy when restoring.
          * Plus, beatblock levels are, by definition, JSON anyhow, and we want to be minimally
          * invasive, so this is a very natural API to use.
+         * 
+         * Compresssion saves around 80% of the memory cost, so very worth it!
          */
-        let undoData = JSON.stringify(this.variant.level);
-        /* Compress it, since I suspect this will be consuming a lot of memory */
-        let compressedUndoData = lzjs.compress(undoData);
-        console.log(`Undo point saved. Compression stats: ${undoData.length}->${compressedUndoData.length}`);
+        let levelData =  lzjs.compress(JSON.stringify(this.variant.level));
+        let chartData =  lzjs.compress(JSON.stringify(this.variant.chart));
 
         this.undoHistory.push({
             time: Date.now(),
             type: undoType,
-            data: compressedUndoData
+            levelData, chartData
         });
         this.undoIndex += 1;
         this.canUndo = this.undoIndex > 0;
@@ -782,9 +797,13 @@ export class BBTimeLine {
     }
     gotoSaveIndex(nindex : number) {        
         this.undoIndex = nindex;
-        let newdata = this.undoHistory[this.undoIndex].data;
-        this.variant.level = JSON.parse(lzjs.decompress(newdata));
-        this.loadEvents();
+        let {levelData, chartData} = this.undoHistory[this.undoIndex];
+        this.variant.level      = JSON.parse(lzjs.decompress(levelData));
+        this.variant.chart      = JSON.parse(lzjs.decompress(chartData));
+
+        /* computeBoundaries set to false to avoid messing with zoom/position */
+        this.loadEvents(false);
+        
         this.canUndo = this.undoIndex > 0;
         this.canRedo = this.undoIndex < this.undoHistory.length - 1;
     }
