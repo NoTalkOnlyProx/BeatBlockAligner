@@ -13,6 +13,8 @@
     /* Consider using SASS or something like it to calc these */
     --highlight-bg-color-hover: #a5129b;
     --highlight-text-color-hover: #ffffff;
+    --highlight-bg-color-disabled: #6e6e6e;
+    --highlight-text-color-disabled: #9b9b9b;
 
     --pane-interior-color: #3e243e;
     --pane-split-color: #2c172c;

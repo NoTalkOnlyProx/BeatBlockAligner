@@ -8,7 +8,7 @@ export interface BBMetadata {
     songName?: string;
     artist?: string;
     bpm? : number;
-    bgData: BBBGData;
+    bgData?: BBBGData;
     bg? : boolean;
     description? : string;
     artistLink? : string;

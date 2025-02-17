@@ -1,6 +1,6 @@
 import type { LODAudioData } from "src/utils/SoundUtils";
 import type { BBTimelineEvent } from "./BBTimeLine";
-import type { BBLevel, BBManifest, BBPlay, BBVariant } from "./BBTypes";
+import type { BBLevel, BBManifest, BBPlay, BBShowResults, BBVariant } from "./BBTypes";
 import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
 
 const SupportedVersions = [14];
@@ -23,8 +23,8 @@ export interface BBVariantFiles {
     name : string;
     levelFileName : string;
     chartFileName : string;
-    levelFile : FileSystemEntry;
-    chartFile : FileSystemEntry;
+    levelFile? : FileSystemEntry;
+    chartFile? : FileSystemEntry;
     level : BBLevel;
     chart : string;
     data : BBVariant;
@@ -69,6 +69,87 @@ export class BBLevelLoader {
 
     /* For my own sanity, I have decided not to support the legacy formats, I am sorry. */
     async load(files: FileSystemEntry[], loadFailed : ReasonHandler) : Promise<boolean> {
+        if (files.length == 1) {
+            return await this.loadMusic(files[0], loadFailed);
+        }
+        return await this.loadFolder(files, loadFailed);
+    }
+
+    /*
+    export interface BBManifest {
+        metadata : BBMetadata;
+        defaultVariant? : string;
+        variants?: BBVariant[];
+    }
+    
+    export interface BBMetadata {
+        songName?: string;
+        artist?: string;
+        bpm? : number;
+        bgData: BBBGData;
+        bg? : boolean;
+        description? : string;
+        artistLink? : string;
+    }
+    */
+
+    async loadMusic(soundFile: FileSystemEntry, loadFailed : ReasonHandler) : Promise<boolean> {
+        let soundFileName = soundFile.name;
+        let variant = {
+            name: "main"
+        };
+        this.manifest = {
+            metadata: {
+                songName: soundFileName,
+                description: "Timing scaffold created with the BeatBlock Aligner tool."
+            },
+            defaultVariant : "main",
+            variants: [variant]
+        }
+        if (!soundFileName.endsWith(".ogg")) {
+            loadFailed(`Only .ogg audio files are supported by this tool for now`);
+            return false;
+        }
+        let soundData = await loadAudioFile(soundFile as FileSystemFileEntry);
+        let playEvent : BBPlay = {
+            type: "play",
+            angle: 0,
+            file: soundFileName,
+            time: 0,
+            volume: 1
+        }
+        let endSongEvent : BBShowResults = {
+            type: "showResults",
+            angle: 0,
+            time: soundData.duration * (100/60),
+        }
+        let level : BBLevel = {
+                properties: {
+                    formatversion: 14
+                },
+                events: [playEvent, endSongEvent]
+        };
+        let chart = "";
+        
+        let sounds : Map<string, BBSoundFile> = new Map();
+        sounds.set(soundFileName, {
+            soundFileName,
+            soundFile,
+            soundData,
+            clickTracks: []
+        });
+        this.variants.push({
+            name: "main",
+            levelFileName: "level.json",
+            chartFileName: "chart.json",
+            level, chart,
+            sounds,
+            data:variant
+        });
+        return true;
+    }
+
+    async loadFolder(files: FileSystemEntry[], loadFailed : ReasonHandler) : Promise<boolean> {
         /* Find manifest.json and its base path */
         let manifestFile = undefined;
         let basePath = "";

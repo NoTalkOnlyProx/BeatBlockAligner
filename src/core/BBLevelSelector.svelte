@@ -1,18 +1,38 @@
 <script lang="ts">
     import { handleDropEvent } from "src/utils/FileUtils";
     import { createEventDispatcher } from "svelte";
+    import { BBLevelLoader } from "./BBLevelLoader";
     const dispatch = createEventDispatcher();
     let dragging = false;
+    let lastReason = "";
+    let processing = false;
 
-    async function handleDrop(e : DragEvent) {
-        let files = await handleDropEvent(e);
-
-        dispatch("filesDragged", {
-            files
-        });
-
-        dragging = false;
+    function loadFailed(reason : string) {
+        console.error(reason);
+        lastReason = reason;
     }
+
+    export async function handleDrop(e : DragEvent) {
+        dragging = false;
+        try {
+            processing = true;
+            let files = await handleDropEvent(e);
+            await onFilesDragged(files);
+            processing = false;
+        } catch (error) {
+            /* am lazy, sorry */
+            loadFailed("Unknown error, see console.");
+            throw error;
+        }
+    }
+
+    async function onFilesDragged(files : FileSystemEntry[]) {
+        let bbll = new BBLevelLoader();
+        if(await bbll.load(files, loadFailed)) {
+            dispatch("loaded", bbll);
+        }
+    }
+
     function handleDragover(e : Event) {
         e.preventDefault();
     }
@@ -24,16 +44,21 @@
     }
 </script>
 
-<!-- I genuinely can't figure out what I am supposed to add for this. -->
-<!-- I am open to a contribution -->
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div 
+<div
+    class="dragcenter"
     on:drop={handleDrop}
     on:dragover={handleDragover}
     on:dragenter={handleDragEnter}
     on:dragleave={handleDragLeave}
-    class:dragging={dragging}
-    class="dragbox">Drag a BeatBlock level folder here</div>
+>
+    <div class:dragging={dragging} class:processing={processing} class="dragbox">
+        Drag a BeatBlock level folder or .ogg file here
+    </div>
+    <div class="reason">{lastReason}</div>
+</div>
+
+
 <style>
     @import "../global.css";
     .dragbox {
@@ -46,12 +71,34 @@
         outline-width: 5px;
         outline-style: solid;
         text-align: center;
-        line-height: 15vw;
         font-size: 2vw;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+    .dragbox.dragging {
+        pointer-events: none;
     }
     .dragbox:hover, .dragging {
         background-color: var(--highlight-bg-color-hover);
         color: var(--highlight-text-color-hover);
         outline-color: var(--highlight-text-color-hover);
+    }
+    .processing {
+        pointer-events: none;
+        background-color: var(--highlight-bg-color-disabled);
+        color: var(--highlight-text-color-disabled);
+        outline-color: var(--highlight-text-color-disabled);
+    }
+    .dragcenter {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+    .reason {
+        margin-top:2vw;
     }
 </style>
