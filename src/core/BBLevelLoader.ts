@@ -4,37 +4,6 @@ import type { BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } 
 import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
 
 const SupportedVersions = [14];
-const SupportedEvents = [
-    "deco",
-    "ease",
-    "forcePlayerSprite",
-    "hom",
-    "noise",
-    "outline",
-    "playSound",
-    "setBgColor",
-    "setBoolean",
-    "setColor",
-    "toggleParticles",
-
-    "block",
-    "extraTap",
-    "hold",
-    "inverse",
-    "mine",
-    "mineHold",
-    "side",
-    "trace",
-
-    "bookmark",
-    "tag",
-
-    "paddles",
-    "play",
-    "setBPM",
-    "showResults"
-]
-
 
 type ReasonHandler = (reason : string) => void;
 export interface BBVariantFiles {
@@ -76,12 +45,6 @@ export class BBLevelLoader {
         }
         console.log("PropertyReport:", propertyReport);
 
-        for (let event of level.events) {
-            if (!SupportedEvents.includes(event.type)) {
-                reasonHandler(`Unsupported event ${event.type}`);
-                return false;
-            }
-        }
         return true;
     }
 
