@@ -1,3 +1,4 @@
+/* Top level structure types */
 export interface BBManifest {
     metadata : BBMetadata;
     defaultVariant? : string;
@@ -14,10 +15,12 @@ export interface BBMetadata {
     artistLink? : string;
 }
 
-export interface BBColor {
-    r : number,
-    g : number,
-    b : number
+export interface BBVariant {
+    name?: string;
+    display?: string;
+    charter?: string;
+    levelFile?: string;
+    difficulty?: number;
 }
 
 export interface BBBGData {
@@ -28,14 +31,6 @@ export interface BBBGData {
     yellowChannel?: BBColor;
     magentaChannel?: BBColor;
     cyanChannel?: BBColor;
-}
-
-export interface BBVariant {
-    name?: string;
-    display?: string;
-    charter?: string;
-    levelFile?: string;
-    difficulty?: number;
 }
 
 export interface BBLevel {
@@ -49,12 +44,30 @@ export interface BBLevel {
     events: BBEvent[]
 }
 
+export interface BBColor {
+    r : number,
+    g : number,
+    b : number
+}
 
-/* This is not an exhaustive implementation. */
+export type BBEaseType = 
+    "linear"    |
+	"inSine"    | "outSine"     | "inOutSine"   |
+	"inQuad"    | "outQuad"     | "inOutQuad"   | 
+	"inCubic"   | "outCubic"    | "inOutCubic"  |
+	"inQuart"   | "outQuart"    | "inOutQuart"  |
+	"inQuint"   | "outQuint"    | "inOutQuint"  |
+	"inExpo"    | "outExpo"     | "inOutExpo"   |
+	"inCirc"    | "outCirc"     | "inOutCirc"   |
+	"inElastic" | "outElastic"  | "inOutElastic"|
+	"inBack"    | "outBack"     | "inOutBack";
+
+/* Root Event Types */
 export interface BBEvent {
     type: string;
     angle?: number;
-    time: number; //VOI
+    order?: number;
+    time: number;
 }
 
 export interface BBSetsBPMEvent extends BBEvent {
@@ -62,10 +75,11 @@ export interface BBSetsBPMEvent extends BBEvent {
 }
 
 export interface BBDurationEvent extends BBEvent {
-    duration: number; //VOI
+    duration: number;
 }
 
-export interface BBDeco extends BBDurationEvent {
+/* Events */
+export interface BBDecoEvent extends BBDurationEvent {
     type: "deco";
     id?: string;
     x?: number;
@@ -75,79 +89,176 @@ export interface BBDeco extends BBDurationEvent {
     sy?: number;
     ox?: number;
     oy?: number;
-    ease?: string;
+    kx?: number;
+    ky?: number;
+    ease?: BBEaseType;
     hide?: boolean;
     drawLayer?: string;
     drawOrder?: number;
-    kx?: number;
-    ky?: number;
     orbit?: boolean;
     outline?: boolean;
     sprite?: string;
     recolor?: number;
     parentid?: string;
+    rotationinfluence?: number; 
+    effectCanvas?: boolean;
+    effectCanvasRaw?: boolean;
 }
 
-
-export interface BBPlay extends BBSetsBPMEvent {
-    type: "play";
-    file: string;
-    volume: number;
-}
-
-
-export interface BBEase extends BBDurationEvent {
+export interface BBEaseEvent extends BBDurationEvent {
     type: "ease",
-    ease: string,
-    value: number,
     var: string,
-    start: number, //VOI
+    start?: number,
+    value: number,
+    ease?: BBEaseType,
+    repeats?: number,
+    repeatDelay?: number
 }
 
-export interface BBOutline extends BBEvent {
+export interface BBForcePlayerSprite extends BBEvent {
+    type: "forcePlayerSprite";
+    spriteName: string;
+}
+
+export interface BBHomEvent extends BBEvent {
+    type: "hom";
+    enable: boolean;
+}
+
+export interface BBNoiseEvent extends BBEvent {
+    type: "noise",
+    chance: number,
+    color: number
+}
+
+export interface BBOutlineEvent extends BBEvent {
     type: "outline",
     enable: boolean,
     color: number
 }
 
-export interface BBSetColor extends BBDurationEvent {
+export interface BBPlaySoundEvent extends BBEvent {
+    type: "playSound",
+    sound: string,
+    volume?: number,
+    pitch?: number
+}
+
+export interface BBSetBGColorEvent extends BBEvent {
+    type: "setBgColor",
+    color?: number,
+    voidColor?: number
+}
+
+export interface BBSetBooleanEvent extends BBEvent {
+    type: "setBoolean",
+    var: string,
+    enable?: boolean
+}
+
+export interface BBSetColorEvent extends BBDurationEvent {
     type: "setColor",
     color: number,
     r: number,
     b: number,
     g: number,
-    ease: string
+    ease?: BBEaseType
 }
 
-export interface BBSetBGCol extends BBEvent {
-    type: "setBgColor",
-    color: number
+export interface BBToggleParticlesEvent extends BBEvent {
+    type: "toggleParticles",
+    block?: boolean,
+    miss?: boolean,
+    mine?: boolean,
+    mineHold?: boolean,
+    side?: boolean
 }
 
-export interface BBNoise extends BBEvent {
-    type: "noise",
-    chance: number,
-    color: number,
-    order: number
+export interface BBBlockEvent extends BBEvent {
+    type: "block",
+    endAngle?: number,
+    spinEase?: BBEaseType,
+    speedMult?: number,
+    tap?: boolean,
 }
 
-export interface BBHom extends BBEvent {
-    type: "hom";
-    enable: boolean;
+export interface BBExtraTapEvent extends BBEvent {
+    type: "extraTap",
+    speedMult?: number,
 }
 
-export interface BBPaddles extends BBDurationEvent {
+
+export interface BBHoldEvent extends BBDurationEvent {
+    type: "hold",
+    angle2: number;
+    segments?: number;
+    holdEase?: number;
+    endAngle?: number;
+    spinEase?: BBEaseType;
+    speedMult?: number;
+    startTap?: boolean;
+    endTap?: boolean;
+}
+
+export interface BBInverseEvent extends BBEvent {
+    type: "inverse",
+    endAngle?: number;
+    spinEase?: BBEaseType;
+    speedMult?: number;
+    tap?: boolean;
+}
+
+export interface BBMineEvent extends BBEvent {
+    type: "mine",
+    endAngle?: number;
+    spinEase?: BBEaseType;
+    speedMult?: number;
+}
+
+export interface BBMineHoldEvent extends BBDurationEvent {
+    type: "mineHold",
+    angle2: number;
+    segments?: number;
+    holdEase?: number;
+    endAngle?: number;
+    spinEase?: BBEaseType;
+    speedMult?: number;
+    tickRate?: number;
+}
+
+export interface BBTraceEvent extends BBDurationEvent {
+    type: "side",
+    angle2: number;
+    segments?: number;
+    holdEase?: number;
+    endAngle?: number;
+    spinEase?: BBEaseType;
+    speedMult?: number;
+    tickRate?: number;
+}
+
+export interface BBPaddlesEvent extends BBDurationEvent {
     type: "paddles",
-    newAngle: number,
-    ease: string,
-    enabled: boolean,
-    paddle: number
+    enabled?: boolean,
+    paddle: number,
+    newWidth?: number,
+    newAngle?: number,
+    ease?: BBEaseType,
 }
 
-export interface BBShowResults extends BBEvent {
+export interface BBPlayEvent extends BBSetsBPMEvent {
+    type: "play";
+    file: string;
+    volume?: number;
+    offset?: number;
+}
+
+export interface BBSetBPMEvent extends BBSetsBPMEvent {
+    type: "setBPM",
+    time: number,
+}
+
+export interface BBShowResultsEvent extends BBEvent {
     type: "showResults",
 }
 
-export interface BBSetBPM extends BBSetsBPMEvent {
-    time: number,
-}

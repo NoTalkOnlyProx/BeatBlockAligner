@@ -1,19 +1,37 @@
 import type { LODAudioData } from "src/utils/SoundUtils";
 import type { BBTimelineEvent } from "./BBTimeLine";
-import type { BBLevel, BBManifest, BBPlay, BBShowResults, BBVariant } from "./BBTypes";
+import type { BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } from "./BBTypes";
 import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
 
 const SupportedVersions = [14];
 const SupportedEvents = [
-    "play",
     "deco",
     "ease",
-    "outline",
-    "setColor",
-    "setBgColor",
-    "noise",
+    "forcePlayerSprite",
     "hom",
+    "noise",
+    "outline",
+    "playSound",
+    "setBgColor",
+    "setBoolean",
+    "setColor",
+    "toggleParticles",
+
+    "block",
+    "extraTap",
+    "hold",
+    "inverse",
+    "mine",
+    "mineHold",
+    "side",
+    "trace",
+
+    "bookmark",
+    "tag",
+
     "paddles",
+    "play",
+    "setBPM",
     "showResults"
 ]
 
@@ -111,14 +129,14 @@ export class BBLevelLoader {
             return false;
         }
         let soundData = await loadAudioFile(soundFile as FileSystemFileEntry);
-        let playEvent : BBPlay = {
+        let playEvent : BBPlayEvent = {
             type: "play",
             angle: 0,
             file: soundFileName,
             time: 0,
             volume: 1
         }
-        let endSongEvent : BBShowResults = {
+        let endSongEvent : BBShowResultsEvent = {
             type: "showResults",
             angle: 0,
             time: soundData.duration * (100/60),
