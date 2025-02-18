@@ -2,16 +2,11 @@ export function isScrollSpecial(event : MouseEvent) {
     return event.button != 0 || event.ctrlKey;
 }
 
-export function mouseToRel(mouseX : number, lane: HTMLElement) : number {
-    let laneRect = lane.getBoundingClientRect();
-    return (mouseX - laneRect.x)/laneRect.width * 100;
+export function pixelsToRel(px : number, zoom : number, center : number) {
+    return (px / window.innerWidth - 0.5) * 100/zoom + center;
 }
 
-export function mouseToRelNumeric(mouseX : number, zoom : number, center : number) {
-    return (mouseX / window.innerWidth - 0.5) * 100/zoom + center;
-}
-
-export function relToMouseNumeric(rel : number, zoom : number, center : number) {
+export function relToPixels(rel : number, zoom : number, center : number) {
     return (((rel - center) * zoom/100) + 0.5) * window.innerWidth;
 }
 

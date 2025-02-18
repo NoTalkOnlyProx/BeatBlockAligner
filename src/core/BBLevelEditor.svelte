@@ -12,7 +12,7 @@
     import Crosshair from './Crosshair.svelte';
     import TimeSpaceMarkers from './TimeSpaceMarkers.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
-    import { relPixelsToRel, mouseToRelNumeric } from './UXUtils';
+    import { relPixelsToRel, pixelsToRel } from './UXUtils';
     export let bbll : BBLevelLoader;
     let maxzoom = 4000;
     let zoom = 0.75;
@@ -69,16 +69,11 @@
 
     function onKeyDown(event : KeyboardEvent) {
         if (event.key === 'Escape') {
-            if (eventEditor) {
-                if (eventEditor.onEscape()) {
-                    return;
-                }
+            if (eventEditor?.onEscape()) {
+                return;
             }
-            
-            if (tsEditor) {
-                if (tsEditor.onEscape()) {
-                    return;
-                }
+            if (tsEditor?.onEscape()) {
+                return;
             }
             return;
         }
@@ -121,9 +116,9 @@
     /* Cascade these events to the minimap so that drags don't have to stay within it */
     function onDragEnd(e : MouseEvent) {
         if (!isDragging) {
-            minimap.onDragEnd(e);
-            tsEditor.onDragEnd(e);
-            eventEditor.onSelectFinish(e);
+            minimap?.onDragEnd(e);
+            tsEditor?.onDragEnd(e);
+            eventEditor?.onSelectFinish(e);
         }
         if (isDragging) {
             isDragging = false;
@@ -133,9 +128,9 @@
 
     function onDrag(e : MouseEvent) {
         if (!isDragging) {
-            minimap.onDrag(e);
-            tsEditor.onDrag(e);
-            eventEditor.onSelectContinue(e);
+            minimap?.onDrag(e);
+            tsEditor?.onDrag(e);
+            eventEditor?.onSelectContinue(e);
         }
         if (isDragging)
         {
@@ -193,9 +188,9 @@
 
     /* Zoom functions */
     function zoomOnMouse(amount : number, mx : number) {
-        let og = mouseToRelNumeric(mx, zoom, center);
+        let og = pixelsToRel(mx, zoom, center);
         zoom *= Math.pow(2, amount);
-        let ng = mouseToRelNumeric(mx, zoom, center);
+        let ng = pixelsToRel(mx, zoom, center);
         center -= ng - og;
     }
     function onMouseWheelZoom(e : WheelEvent) {
@@ -326,17 +321,15 @@
                 </div>
             </Pane>
             <Pane size={20}>
-                <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
-                    <TimelineLanes>
-                        <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
-                    </TimelineLanes>
-                </TimelineZone>
+                <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
             </Pane>
             <Pane>
                 <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
-                    <TimelineLanes>                        
+                    <TimelineLanes>
                         <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                        <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
+                        {#if true}
+                            <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
+                        {/if}
                     </TimelineLanes>
                 </TimelineZone>
             </Pane>

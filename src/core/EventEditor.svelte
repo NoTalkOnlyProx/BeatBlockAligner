@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBSelectionPoint, type BBTimelineEvent } from './BBTimeLine';
-    import { isScrollSpecial, relPixelsToRel, mouseToRelNumeric, relToMouseNumeric, relToRelPixels } from './UXUtils';
+    import { isScrollSpecial, relPixelsToRel, pixelsToRel, relToRelPixels } from './UXUtils';
     import type { BBDurationEvent } from './BBTypes';
     import EventCaptureZone from './EventCaptureZone.svelte';
     export let timeline : BBTimeLine;
@@ -219,7 +219,7 @@
     function mouseCoords(mx : number, my : number) {
         let laneRect = lane.getBoundingClientRect();
         let angle = yPosToAng(my - laneRect.top);
-        let time = timeline.relToTime(mouseToRelNumeric(mx, zoom, center));
+        let time = timeline.relToTime(pixelsToRel(mx, zoom, center));
         return {angle, time}
     }
 

@@ -2,7 +2,7 @@
     import {default as Timecode, type FRAMERATE} from 'smpte-timecode';
     import { onMount, onDestroy } from 'svelte';
     import type { BBTimeLine } from './BBTimeLine';
-    import { mouseToRelNumeric, relToMouseNumeric } from './UXUtils';
+    import { pixelsToRel, relToPixels } from './UXUtils';
     let ch : HTMLElement;
 
     let msg = "HAI";
@@ -32,14 +32,14 @@
     }
 
     function updateTime(mx : number, zoom : number, center: number, co : boolean, coTime: number, timeline : BBTimeLine) {
-        let crosshairTime = co ? coTime : timeline.relToTime(mouseToRelNumeric(mx, zoom, center));
+        let crosshairTime = co ? coTime : timeline.relToTime(pixelsToRel(mx, zoom, center));
         let beat = timeline.timeToBeat(crosshairTime);
         let bpm = timeline.timeToBPM(crosshairTime);
         msg = `${beat.toFixed(4)}b (${crosshairTime.toFixed(4)}s / ${new Timecode(crosshairTime * 1000, 1000 as FRAMERATE)}) [${bpm} bpm]`;
         
         if (ch) {
             let rect = ch.parentElement!.getBoundingClientRect();
-            let tmx = relToMouseNumeric(timeline.timeToRel(crosshairTime), zoom, center);
+            let tmx = relToPixels(timeline.timeToRel(crosshairTime), zoom, center);
             ch.style.left = (tmx - rect.left) + "px";
         }
     }

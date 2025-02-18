@@ -148,11 +148,13 @@ export class BBTimeLine {
         return this.timeControlEvents?.[this.timeControlEvents.indexOf(event!) + 1];
     }
 
-    getEventsNearTime(events : BBTimelineEvent[], time : number, zoom : number, threshold : number) : BBTimelineEvent[] { 
+    getEventsNearTime(events : BBTimelineEvent[], time : number, threshold : number) : BBTimelineEvent[] { 
         let earliestTime = time - threshold/2;
-        let latestTime = time + threshold/2;        
+        let latestTime = time + threshold/2;     
+        
         let lower = 0;
         let upper = events.length-1;
+
 
         if (events.length == 0) {
             return [];
@@ -416,11 +418,19 @@ export class BBTimeLine {
     /* 0 to 100 where 0 is roughly the song start, and 100 is roughly the song end. */
     /* Editor starts out zoomed in on this. */
     timeToRel(t : number) {
-        return (t - this.firstTime)/(this.lastTime - this.firstTime) * 100;
+        return this.timeToRelDelta(t - this.firstTime);
     }
 
     relToTime(rt : number) {
-        return rt/100 * (this.lastTime - this.firstTime) + this.firstTime;
+        return this.relToTimeDelta(rt) + this.firstTime;
+    }
+
+    relToTimeDelta(drt : number) {
+        return drt/100 * (this.lastTime - this.firstTime);
+    }
+
+    timeToRelDelta(dt : number) {
+        return dt/(this.lastTime - this.firstTime) * 100;
     }
 
     interpolateBeat(a : TimeBeatPoint, b : TimeBeatPoint, beat : number) {

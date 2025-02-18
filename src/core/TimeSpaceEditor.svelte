@@ -1,275 +1,38 @@
 <script lang="ts">
+    import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBTimelineEvent, type BBTimelineOperationMode } from './BBTimeLine';
     import type {BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
-    import EventCaptureZone from './EventCaptureZone.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
-    import { isScrollSpecial, mouseToRel, mouseToRelNumeric, relToRelPixels } from './UXUtils';
+    import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from './UXUtils';
+
     export let timeline : BBTimeLine;
     export let zoom : number;
     export let center : number;
     export let co : boolean;
     export let coTime : number;
+
     let selectedControl : (BBTimelineEvent | null) = null;
-
-
-    
-    /* This code is in need of a bit of a refactor -- `selectedBI` is really a ***tick***, 
-     * which is the name I have chosen for the subdivisions of beats implied by the current
-     * snapGrid value. Also there are now time conversions directly in timeline.
-     */
-    let selectedBI : (number | null) = null;
-    let beats = 0;
-    let tooltipX : string = "0px";
-    let tooltipY : string = "0px";
-    let tooltipTime = 0;
+    let selectedTI : (number | null) = null;
     let tooltipVisible = false;
-    let mouseX = 0;
-    let mouseY = 0;
-    let lane: HTMLElement;
     let choosingEvent = false;
     let tooltipEvents : BBTimelineEvent[];
-    let oldBeatGrid : number = 4;
     
     export let controlMoveMode : BBTimelineOperationMode = "MoveKeepBeats";
     export let beatStretchMode : BBTimelineOperationMode = "StretchKeepAllBeats";
     export let snapToBeat = false;
     export let beatGrid : number = 4;
 
-    let indices = 0;
-    let firstBeatIndex = 0;
-    let trueFirstBeat = 0;
-    let selectedBPM = 0;
-
-    $: computeBeats(zoom, center, beatGrid, timeline)
-
-
-    /* Disabling dynamic range display for now, it worsened performance.
-     * I need to think about how to optimize this.
-     * The real solution is probably to keep all elements visible, but use cached positions
-     * and update just the cached positions within visible range.
-     * Either that or just switch to canvas or otherwise stop using svelte at all for the
-     * recompute.
-     * But I don't wanna right now.
-     */
-
-    //$: computeBeatsGrid(zoom, center, beatGrid);
-    //$: computeBeatsTimeline(timeline);
-
-    //let lastLeftBeat = -99999;
-    //let lastRightBeat = -99999;
-    //let lastBeatGrid = -9999;
-    //function computeBeatsGrid(zoom : number, center : number, beatGrid : number) {
-    //    computeBeats(zoom, center, beatGrid, timeline);
-    //}
-    //function computeBeatsTimeline(timeline : BBTimeLine) {
-    //    lastLeftBeat = lastRightBeat = -99999;
-    //    computeBeats(zoom, center, beatGrid, timeline);
-    //}
-    
-    function computeBeats(zoom : number, center : number, beatGrid : number, timeline : BBTimeLine) {
-        //let leftTimeRel = center - 50/zoom;
-        //let rightTimeRel = center + 50/zoom;
-        //
-        ///* Compromise: we quantize this to hectobeats to reduced updates during scroll */
-        //let quantization = 100;
-        //let leftBeat = Math.floor(Math.floor(timeline.timeToBeat(timeline.relToTime(leftTimeRel)) * quantization)/quantization);
-        //let rightBeat = Math.ceil(Math.ceil(timeline.timeToBeat(timeline.relToTime(rightTimeRel)) * quantization)/quantization);
-
-        ///* Same conditions, no need to redo layout */
-        //if (leftBeat == lastLeftBeat && rightBeat == lastRightBeat && lastBeatGrid == beatGrid) {
-        //    return;
-        //}
-        
-        /* startTimes.trueFirstBeat is the beat BB will truly start on */
-        /* timeline.firstBeat is the first beat with an event. */
-        /* The minimum of these is the song's ultimate "first tick"
-         * That tick has Beat Index = 0.
-         */
-        let trueStart = timeline.startTimes?.trueFirstBeat ?? 0;
-        trueFirstBeat = Math.floor(Math.min(trueStart, timeline.firstBeat));
-        let lastBeatIndex = Math.ceil((timeline.lastBeat - trueFirstBeat) * beatGrid);
-
-        let leftBeatIndex  = 0;             //Math.min(lastBeatIndex, Math.max(0, (leftBeat -  trueFirstBeat) * beatGrid));
-        let rightBeatIndex = lastBeatIndex; //Math.min(lastBeatIndex, Math.max(0, (rightBeat - trueFirstBeat) * beatGrid));
-
-        firstBeatIndex = leftBeatIndex;
-        indices = rightBeatIndex - leftBeatIndex;
-    }
-
-    $: zoom, center, lane, selectedBI, selectedControl, choosingEvent, recomputeTooltip();
-    $: hasLoadBeat = timeline.startTimes?.performLoad ?? false;
-    $: loadBeat = timeline.startTimes?.loadBeat ?? 0;
-    $: beatGrid, resnapBI();
-
-    function resnapBI() {
-        if (selectedBI != null) {
-            selectedBI = Math.round(selectedBI/oldBeatGrid * beatGrid);
-        }
-        oldBeatGrid = beatGrid;
-    }
-
-    function handleMouseMove(event: MouseEvent) {
-        mouseX = event.clientX;
-        mouseY = event.clientY;
-        recomputeTooltip();
-    }
-
-    function handleMouseExit(event: MouseEvent) {
-        if (choosingEvent) {
-            return;
-        }
-        tooltipVisible = false;
-    }
-
-    function recomputeTooltip() {
-        if (!lane) {
-            return;
-        }
-        if (choosingEvent) {
-            tooltipVisible = true;
-            return;
-        }
-        if (selectedControl == null) {
-            let laneRect = lane.getBoundingClientRect();
-            tooltipX = (mouseX - laneRect.x + 20) + "px";
-            tooltipY = (mouseY - laneRect.y) + "px";
-            tooltipTime = timeline.relToTime(mouseToRel(mouseX, lane));
-
-            
-            let leftTimeRel = center - 50/zoom;
-            let rightTimeRel = center + 50/zoom;
-            let leftVisibleTime = timeline.relToTime(leftTimeRel);
-            let rightVisibleTime = timeline.relToTime(rightTimeRel);
-
-            /* Anything within 30 pixels */
-            let threshold = 30/window.innerWidth * (rightVisibleTime - leftVisibleTime);
-
-            tooltipEvents = timeline.getEventsNearTime(timeline.timeControlEvents, tooltipTime, zoom, threshold);
-            tooltipVisible = tooltipEvents.length > 0;
-            return;
-        }
-        tooltipVisible = false;
-    }
-
-    function getDescription(event : BBTimelineEvent) {
-        let type = event.event.type;
-        let bpm = (event.event as (BBSetsBPMEvent))?.bpm ?? null;
-        let bpmtext = (bpm===null) ? "":`(bpm->${bpm.toFixed(2)}) `
-        return `${type}: ${bpmtext}(ang: ${event.event.angle?.toFixed(1)})`;
-    }
-
-    function biToBeat(bi : number, beatGrid : number) {
-        return bi/beatGrid + trueFirstBeat;
-    }
-
-    function mapbi(bi : number, timeline : BBTimeLine, beatGrid : number, zoom : number) {
-        if (bi == 25) {
-            console.log("25 recomputed");
-        }
-        return relToRelPixels(timeline.timeToRel(timeline.beatToTime(biToBeat(bi, beatGrid))), zoom);
-    }
-    function mapBeat(beat : number, timeline : BBTimeLine, zoom : number) {
-        return relToRelPixels(timeline.timeToRel(timeline.beatToTime(beat)), zoom);
-    }
-    function selectControlNear(e : MouseEvent, event : BBTimelineEvent) {
-        if (selectedControl || choosingEvent) {
-            return;
-        }
-        if (tooltipEvents.length == 0) { 
-            selectControl(event);
-        }
-        else if (tooltipEvents.length == 1) {
-            selectControl(tooltipEvents[0]);
-        }
-        else {
-            choosingEvent = true;
-        }
-        e.preventDefault();
-        e.stopPropagation();
-    }
-    function selectControlKeyboard(e : KeyboardEvent, event : BBTimelineEvent) {
-        if (e.key != "Enter") {
-            return;
-        }
-        if (selectedControl) {
-            return;
-        }
-        selectControl(event);
-        e.preventDefault();
-    }
-    function getControlBPM(selectedControl : BBTimelineEvent) {
-        return (selectedControl?.event as BBSetsBPMEvent)?.bpm ?? null;
-    }
-    function handleSetBPM(event : CustomEvent) {
-        if (!selectedControl) {
-            return;
-        }
-        let nbpm = event.detail;
-        timeline.setBPM(selectedControl, nbpm, beatStretchMode, snapToBeat, beatGrid);
-        timeline=timeline;
-    }
     function selectControl(event : BBTimelineEvent) {
         console.log("Selected!");
         selectedControl = event;
         choosingEvent = false;
     }
 
-    function beatSelectable(bi : number,
-                            selectedControl : BBTimelineEvent | null,
-                            selectedBI : number | null,
-                            draggingAny : boolean, beatGrid : number,
-                            timeline : BBTimeLine) {
-        return !draggingAny &&
-               (selectedBI === null) &&
-               beatIsValidSelection(bi, selectedControl, beatGrid);
-    }
-    function beatIsValidSelection(bi : number | null, selectedControl : BBTimelineEvent | null, beatGrid : number) {
-        if (bi == null) {
-            return false;
-        }
-        let nextControl = timeline.getControlAfter(selectedControl);
-        let beat = biToBeat(bi, beatGrid);
-        return (selectedControl != null) &&
-                beat > selectedControl?.event.time &&
-               (!nextControl || beat < (nextControl.event.time - 0.5/beatGrid));
-    }
-    function selectBeatMouse(e : MouseEvent, bi : number) {
-        if (selectBeat(bi)) {
-            e.stopPropagation();
-            e.preventDefault();
-        }
-    }
-    function selectBeatKeyboard(e : KeyboardEvent, bi : number) {
-        if (e.key != "Enter") {
-            return;
-        }
-        if (selectBeat(bi)) {
-            e.preventDefault();
-        }
-    }
-    function selectBeat(bi : number) {
-        if (!beatSelectable(bi, selectedControl, selectedBI, draggingAny, beatGrid, timeline)) {
-            return false;
-        }
-        selectedBI = bi;
-        return true;
-    }
-
-    function isSelected(selectedBI : number | null, bi : number)
-    {
-        return selectedBI === bi;
-    }
-
-    function deselectBeat(e : MouseEvent) {
-        selectedBI = null;
-        e.stopPropagation();
-    }
-
     function deselectControl(e : MouseEvent) {
         console.log("Deselected!");
         selectedControl = null;
         choosingEvent = false;
-        selectedBI = null;
+        selectedTI = null;
         e.stopPropagation();
     }
 
@@ -282,7 +45,7 @@
         timeline=timeline;
         selectedControl = null;
         choosingEvent = false;
-        selectedBI = null;
+        selectedTI = null;
         e.stopPropagation();
     }
 
@@ -291,8 +54,8 @@
             choosingEvent = false;
             return true;
         }
-        if (selectedBI != null) {
-            selectedBI = null;
+        if (selectedTI != null) {
+            selectedTI = null;
             return true;
         }
         if (selectedControl != null) {
@@ -302,15 +65,255 @@
         return false;
     }
 
-    let draggingAny = false;
-    let draggingControl = false;
-    let draggingBeat = false;
-    let dragInitialTime = 0;
-    function preventDragProp(event : MouseEvent) {
+    function selectTI(ti : number) {
+        if (!TISelectable(ti)) {
+            return false;
+        }
+        selectedTI = ti;
+        return true;
+    }
+
+    function TISelectable(ti : number) {
+        return !draggingAny &&
+            (selectedTI === null) &&
+            TIIsValidSelection(ti, selectedControl, beatGrid);
+    }
+    function TIIsValidSelection(ti : number | null, selectedControl : BBTimelineEvent | null, beatGrid : number) {
+        if (ti == null) {
+            return false;
+        }
+        let nextControl = timeline.getControlAfter(selectedControl);
+        let beat = tiToBeat(ti);
+        return (selectedControl != null) &&
+                beat > selectedControl?.event.time &&
+            (!nextControl || beat < (nextControl.event.time - 0.5/beatGrid));
+    }
+
+    function deselectTI(e : MouseEvent) {
+        selectedTI = null;
+        e.stopPropagation();
+    }
+
+
+    
+
+    function mouseToTime(mx : number) {
+        return timeline.relToTime(pixelsToRel(mx, zoom, center));
+    }
+
+    function startDrag(event : MouseEvent) {
+        draggingAny = true;
+        dragInitialTime = mouseToTime(event.clientX);
+        co = true;
+        event.preventDefault();
+        console.log("START DRAG");
+    }
+
+    
+    let cv : HTMLCanvasElement;
+    let container : HTMLElement;
+    /* We are forced to do this using canvas for performance reasons,
+     * there is no way around it, to do anything else is incredibly slow!
+     */
+    onMount(() => {
+        animate();
+	});
+    let lastID : number = 0;
+    function animate() {
+        render();
+        lastID = requestAnimationFrame(animate);
+    }
+    onDestroy(() => {
+        cancelAnimationFrame(lastID);
+	});
+
+    $: timeline, beatGrid, computeTickSpace();
+    let trueFirstBeat = 0;
+    let lastBeatIndex = 0;
+    function computeTickSpace() {
+        let trueStart = timeline.startTimes?.trueFirstBeat ?? 0;
+        trueFirstBeat = Math.floor(Math.min(trueStart, timeline.firstBeat));
+        lastBeatIndex = Math.ceil((timeline.lastBeat - trueFirstBeat) * beatGrid);
+        console.log("Tick space computed");
+    }
+
+    $: beatGrid, resnapTI();
+    let oldBeatGrid : number = 4;
+    function resnapTI() {
+        if (selectedTI != null) {
+            selectedTI = Math.round(selectedTI/oldBeatGrid * beatGrid);
+        }
+        oldBeatGrid = beatGrid;
+    }
+
+
+    function render() {
+        let bounds = cv.getBoundingClientRect();
+        cv.width = bounds.width;
+        cv.height = bounds.height;
+
+        const ctx = cv.getContext("2d");
+        ctx!.clearRect(0, 0, cv.width, cv.height);
+
+        renderBeatTicks(ctx!);
+        renderControls(ctx!);
+    }
+
+    function renderBeatTicks(ctx : CanvasRenderingContext2D) {
+        let nearTI = beatToTI(timeline.timeToBeat(mouseToTime(mouseX)));
+        for (let ti = 0; ti <= lastBeatIndex; ti++) {
+            let tickX = getTickX(ti, timeline, zoom, center);
+            renderTick(ctx, tickX, {
+                color:"#ACACAC",
+                hoverColor: "#FFFFFF",
+                hover : ti == nearTI,
+                selectable : TISelectable(ti),
+                selected : selectedTI === ti
+            });
+        }
+
+        if (timeline.startTimes?.performLoad) {
+            let loadBeat = timeline.startTimes?.loadBeat ?? 0
+            let loadBeatX = getBeatX(loadBeat);
+            
+            renderTick(ctx, loadBeatX, {color:"rgb(255, 123, 0)"});
+        }
+
+        let startX = getBeatX(timeline?.startTimes?.trueFirstBeat ?? 0);
+        renderTick(ctx, startX, {color:"rgb(0, 255, 34)"});
+    }
+
+    function renderControls(ctx : CanvasRenderingContext2D)
+    {
+        for (let control of timeline.timeControlEvents) {
+            let controlX = getControlX(control, timeline, zoom, center);
+            renderTick(ctx, controlX, {
+                color: "#FF0000",
+                hover: tooltipEvents.includes(control),
+                selected: selectedControl === control,
+                selectable: selectedControl === null 
+            });
+        }
+    }
+
+    interface TickParams {
+        selected? : boolean,
+        selectable? : boolean,
+        hover? : boolean,
+        color? : string,
+        hoverColor? : string
+    }
+
+    function renderTick(ctx : CanvasRenderingContext2D, x : number, params : TickParams = {}) {
+        let fullHeight = cv.height;
+        let partialHeight = cv.height - 25;
+
+        let normalcolor = params.color ?? "#FFF";
+        let hoverColor = params.hoverColor ?? normalcolor;
+
+        let highlighted = (params.selectable && params.hover) || params.selected;
+
+        let height = (!params.selectable || highlighted) ? fullHeight : partialHeight;
+        let color = highlighted ? hoverColor : normalcolor;
+        let width = (highlighted || params.selectable) ? 5 : 1;
+        let ofs = width/2;
+        
+        ctx.beginPath();
+        ctx.lineWidth = width;
+        ctx.strokeStyle = color;
+        ctx.moveTo(x + ofs, 0);
+        ctx.lineTo(x + ofs, height);
+        ctx.stroke();
+    }
+
+    $: zoom, center, selectedTI, selectedControl, choosingEvent, recomputeTooltip();
+    let mouseX = 0;
+    let mouseY = 0;
+    let tooltipX : string = "0px";
+    let tooltipY : string = "0px";
+    function recomputeTooltip() {
+        if (choosingEvent) {
+            tooltipVisible = true;
+            return;
+        }
+        if (selectedControl == null) {
+            tooltipX = (mouseX + 20) + "px";
+            tooltipY = (mouseY) + "px";
+            let tooltipTime = timeline.relToTime(pixelsToRel(mouseX, zoom, center));
+
+            /* Anything within 30 pixels */
+            let threshold = timeline.relToTimeDelta(relPixelsToRel(30, zoom));
+            console.log(threshold);
+            tooltipEvents = timeline.getEventsNearTime(timeline.timeControlEvents, tooltipTime, threshold);
+            tooltipVisible = tooltipEvents.length > 0;
+            return;
+        }
+        tooltipVisible = false;
+    }
+    function handleMouseMove(event: MouseEvent) {
+        let crect = container.getBoundingClientRect();
+        mouseX = event.clientX;
+        mouseY = event.clientY - crect.top;
+        recomputeTooltip();
+    }
+    function handleMouseExit(event: MouseEvent) {
+        if (choosingEvent) {
+            return;
+        }
+        tooltipVisible = false;
+    }
+
+    function beatToTI(beat : number) {
+        return Math.round((beat - trueFirstBeat) * beatGrid)
+    }
+
+    function tiToBeat(ti : number) {
+        return ti/beatGrid + trueFirstBeat;
+    }
+
+    function getControlX(control : BBTimelineEvent, timeline : BBTimeLine, zoom : number, center : number, debug : boolean = false) {
+        let ret = relToPixels(timeline.timeToRel(timeline.beatToTime(control.event.time)), zoom, center);
+        return ret;
+    }
+
+    function getTickX(ti : number, timeline : BBTimeLine, zoom : number, center : number) {
+        return getBeatX(tiToBeat(ti));
+    }
+
+    function getBeatX(beat : number) {
+        return relToPixels(timeline.timeToRel(timeline.beatToTime(beat)), zoom, center);
+    }
+    
+    function preventNavDrag(event : MouseEvent) {
         if (event.button != 1) {   
             event.stopPropagation();
         }
     }
+
+    function getDescription(event : BBTimelineEvent) {
+        let type = event.event.type;
+        let bpm = (event.event as (BBSetsBPMEvent))?.bpm ?? null;
+        let bpmtext = (bpm===null) ? "":`(bpm->${bpm.toFixed(2)}) `
+        return `${type}: ${bpmtext}(ang: ${event.event.angle?.toFixed(1)})`;
+    }
+
+    function getControlBPM(selectedControl : BBTimelineEvent) {
+        return (selectedControl?.event as BBSetsBPMEvent)?.bpm ?? null;
+    }
+
+    function handleSetBPM(event : CustomEvent) {
+        if (!selectedControl) {
+            return;
+        }
+        let nbpm = event.detail;
+        timeline.setBPM(selectedControl, nbpm, beatStretchMode, snapToBeat, beatGrid);
+        timeline=timeline;
+    }
+
+    let draggingAny = false;
+    let draggingControl = false;
+    let draggingBeat = false;
+    let dragInitialTime = 0;
 
     function startDragControl(event : MouseEvent, mustSave : boolean = false) {
         if (isScrollSpecial(event)) {
@@ -331,27 +334,15 @@
         if (isScrollSpecial(event)) {
             return;
         }
-        if (!selectedControl || selectedBI == null) {
+        if (!selectedControl || selectedTI == null) {
             return;
         }
         draggingBeat = true;
-        coTime = timeline.beatToTime(timeline.tickToBeat(selectedBI, beatGrid));
-        timeline.beginStretchOperation(selectedControl!, beatStretchMode, snapToBeat, beatGrid, selectedBI);
+        coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI, beatGrid));
+        timeline.beginStretchOperation(selectedControl!, beatStretchMode, snapToBeat, beatGrid, selectedTI);
         startDrag(event);
     }
-
-    function mouseToTime(mx : number) {
-        return timeline.relToTime(mouseToRelNumeric(mx, zoom, center));
-    }
-
-    function startDrag(event : MouseEvent) {
-        draggingAny = true;
-        dragInitialTime = mouseToTime(event.clientX);
-        co = true;
-        event.preventDefault();
-        console.log("START DRAG");
-    }
-
+    
     function startDragControlDup(event : MouseEvent) {
         if (isScrollSpecial(event)) {
             return;
@@ -397,8 +388,8 @@
             timeline.finishStretchOperation(dragTime - dragInitialTime);
         }
 
-        if (!beatIsValidSelection(selectedBI, selectedControl, beatGrid)) {
-            selectedBI = null;
+        if (!TIIsValidSelection(selectedTI, selectedControl, beatGrid)) {
+            selectedTI = null;
         }
 
         timeline = timeline;
@@ -417,7 +408,7 @@
         }
         if (draggingBeat) {
             timeline.continueStretchOperation(dragTime - dragInitialTime);
-            coTime = timeline.beatToTime(timeline.tickToBeat(selectedBI!, beatGrid));
+            coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI!, beatGrid));
         }
         timeline = timeline;
         event.preventDefault();
@@ -428,8 +419,38 @@
         draggingControl = false;
         co = false;
         selectedControl = null;
-        selectedBI = null;
+        selectedTI = null;
         choosingEvent = false;
+    }
+
+    function handleMouseClick(e : MouseEvent) {
+        if (choosingEvent || isScrollSpecial(e)) {
+            return;
+        }
+        if (!selectedControl) {
+            if (tooltipEvents.length == 0) {
+                return;
+            }
+            if (tooltipEvents.length == 1) {
+                selectControl(tooltipEvents[0]);
+            }
+            else {
+                choosingEvent = true;
+            }
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+
+        if (selectedTI === null) {
+            let targetTI = beatToTI(timeline.timeToBeat(mouseToTime(e.clientX)));
+
+            if (selectTI(targetTI)) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            return;
+        }
     }
 
     function handleRightClick(e : MouseEvent) {
@@ -450,85 +471,55 @@
         timeline.addEvent(setBPM, true);
         timeline=timeline;
     }
-
 </script>
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<!-- svelte-ignore a11y-click-events-have-key-events -->
-<div class="lane" bind:this={lane} on:contextmenu={handleRightClick} on:mousemove={handleMouseMove} on:mouseleave={handleMouseExit}>
-    <EventCaptureZone style="height:100%"></EventCaptureZone>
-    {#each {length: indices} as _, bi_sub}
+<div class="tscontainer" bind:this={container}>
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <!-- svelte-ignore a11y-click-events-have-key-events -->
+    <canvas
+        class="editzone" bind:this={cv}
+        on:mousemove={handleMouseMove}
+        on:mouseleave={handleMouseExit}
+        on:click={handleMouseClick}
+        on:contextmenu={handleRightClick}
+    ></canvas>
+    {#if selectedControl!==null}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
-            class="marker"
-            style:left={`calc(${mapbi(bi_sub + firstBeatIndex, timeline, beatGrid, zoom)}px - 10px)`}
-            class:hoverable={beatSelectable(bi_sub + firstBeatIndex, selectedControl, selectedBI, draggingAny, beatGrid, timeline)}
-            class:selected={isSelected(selectedBI, bi_sub + firstBeatIndex)}
-            class:suppressed={selectedBI!==(bi_sub + firstBeatIndex) && selectedBI && selectedControl}
-
-            role="button"
-            tabindex="0"
-            aria-label={`Beat ${bi_sub + firstBeatIndex}`}
-            on:mousedown={preventDragProp}
-            on:click={(e)=>selectBeatMouse(e, bi_sub + firstBeatIndex)}
-            on:keydown={(e)=>selectBeatKeyboard(e, bi_sub + firstBeatIndex)}>
-            <div class="line"></div>
-            {#if isSelected(selectedBI, bi_sub + firstBeatIndex)}
-                <div class="controlzone" on:mousedown={preventDragProp}>
-                    <div class="controlTitle">Tick {bi_sub + firstBeatIndex}</div>
-                    <div class="buttonzone">
-                        <button class="move" on:mousedown={startDragBeat}>Stretch</button>
-                        <button class="dup">Insert</button>
-                        <button class="desel" on:click={deselectBeat}>Deselect</button>
-                    </div>
-                </div>
-            {/if}
-        </div>
-    {/each}
-    <div
-        class="start marker"
-        style:left={`calc(${mapBeat(trueFirstBeat, timeline, zoom)}px - 10px)`}>
-        <div class="line"></div>
-    </div>
-    {#if hasLoadBeat}
-        <div
-            class="load marker"
-            style:left={`calc(${mapBeat(loadBeat, timeline, zoom)}px - 10px)`}>
-            <div class="line"></div>
+            class="controlzone"
+            on:mousedown={preventNavDrag}
+            style:left={`calc(${getControlX(selectedControl, timeline, zoom, center, true)}px + 6px)`}
+        >
+            <div class="controlTitle">{getDescription(selectedControl)}</div>
+            <div class="bpmcont">
+                <OptionalNumber value={getControlBPM(selectedControl)} on:change={handleSetBPM}>BPM</OptionalNumber>
+            </div>
+            <div class="buttonzone">
+                <button class="move" on:mousedown={startDragControl}>Move</button>
+                <button class="del" on:click={deleteControl}>Delete</button>
+                {#if selectedControl.event.type === "play"}
+                    <button class="dup" on:mousedown={startDragControlSplit}>Split</button>
+                {:else}
+                    <button class="dup"  on:mousedown={startDragControlDup}>Dup</button>
+                {/if}
+                <button class="desel" on:click={deselectControl}>Deselect</button>
+            </div>
         </div>
     {/if}
-    {#each timeline.timeControlEvents as event,i}
+    {#if selectedTI !== null}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
         <div
-            class="ctrl marker"
-            style:left={`calc(${mapBeat(event.event.time, timeline, zoom)}px - 10px)`}
-            class:hoverable={(!selectedControl)}
-            class:selected={event===selectedControl}
-
-            role="button"
-            tabindex="0"
-            aria-label={`Timeline Control Event ${i}`}
-            on:click={(e)=>selectControlNear(e, event)}
-            on:keydown={(e)=>selectControlKeyboard(e, event)}
-            on:mousedown={preventDragProp}>
-            <div class="line"></div>
-            {#if selectedControl===event}
-                <div class="controlzone" on:mousedown={preventDragProp}>
-                    <div class="controlTitle">{getDescription(event)}</div>
-                    <div class="bpmcont">
-                        <OptionalNumber value={getControlBPM(selectedControl)} on:change={handleSetBPM}>BPM</OptionalNumber>
-                    </div>
-                    <div class="buttonzone">
-                        <button class="move" on:mousedown={startDragControl}>Move</button>
-                        <button class="del" on:click={deleteControl}>Delete</button>
-                        {#if event.event.type === "play"}
-                            <button class="dup" on:mousedown={startDragControlSplit}>Split</button>
-                        {:else}
-                            <button class="dup"  on:mousedown={startDragControlDup}>Dup</button>
-                        {/if}
-                        <button class="desel" on:click={deselectControl}>Deselect</button>
-                    </div>
-                </div>
-            {/if}
+            class="controlzone"
+            on:mousedown={preventNavDrag}
+            style:left={`calc(${getTickX(selectedTI, timeline, zoom, center)}px + 6px)`}
+        >
+            <div class="controlTitle">Tick {selectedTI}</div>
+            <div class="buttonzone">
+                <button class="move" on:mousedown={startDragBeat}>Stretch</button>
+                <button class="dup">Insert</button>
+                <button class="desel" on:click={deselectTI}>Deselect</button>
+            </div>
         </div>
-    {/each}
+    {/if}
     {#if tooltipVisible}
         <div class="tooltip" style:left={tooltipX} style:top={tooltipY}>
             {#each tooltipEvents as event,i}
@@ -539,6 +530,63 @@
 </div>
 <style>
     @import "../global.css";
+    .tscontainer {
+        overflow:hidden;
+        height: 100%;
+        width: 100%;
+        position:relative;
+    }
+
+
+    .editzone {
+        width: 100%;
+        height: 100%;
+    }
+
+    .controlzone {
+        z-index: 70;
+        opacity: 0.9;
+        min-width:2vw;
+        top:0px;
+        position:absolute;
+        display: flex;
+        align-items: flex-start;
+        flex-direction: column;
+        pointer-events: none;
+    }
+
+    .controlzone > * {
+        pointer-events: auto;
+    }
+
+    .buttonzone {
+        display:flex;
+        flex-direction: column;
+        min-width:0px;
+        background-color: var(--tooltip-color);
+    }
+
+    .bpmcont {
+        padding: 3px;
+        display:flex;
+        background-color: var(--tooltip-color);
+    }
+
+    :global(.bpmcont input) {
+        background-color: var(--main-input-bg);
+        color : var(--main-text-color);
+    }
+
+    .buttonzone button {
+        border: none;
+        display: block;
+        color: black;
+        pointer-events: auto;
+    }
+
+    .controlzone > * {
+        opacity: 1.0;
+    }
 
     .move {
         background-color: #28e6cb;
@@ -564,56 +612,12 @@
     .desel:hover {
         background-color: #ffd986;
     }
-
     .controlTitle {
         padding:3px;
         background-color: var(--tooltip-color-bright);
         width:100%;
         white-space: nowrap;
     }
-
-    .controlzone {
-        z-index: 70;
-        opacity: 0.9;
-        min-width:2vw;
-        left:14px;
-        top:0px;
-        position:absolute;
-        display: flex;
-        align-items: flex-start;
-        flex-direction: column;
-    }
-
-    .controlzone > * {
-        opacity: 1.0;
-    }
-
-    .buttonzone {
-        display:flex;
-        flex-direction: column;
-        min-width:0px;
-        background-color: var(--tooltip-color);
-    }
-
-    .bpmcont {
-        padding: 3px;
-        display:flex;
-        background-color: var(--tooltip-color);
-    }
-
-    :global(.bpmcont input) {
-        background-color: var(--main-input-bg);
-        color : var(--main-text-color);
-    }
-
-
-    .buttonzone button {
-        border: none;
-        display: block;
-        color: black;
-        pointer-events: all;
-    }
-
     .tooltip {
         pointer-events: none;
         position:absolute;
@@ -633,71 +637,10 @@
         background-color: var(--tooltip-color-bright);
     }
     .ttevent.clickable {
-        pointer-events: all;
+        pointer-events: auto;
     }
 
     .ttevent.clickable:hover {
         background-color: var(--tooltip-color-hover)
     }
-    .lane {
-        width: 100px;
-        height: 150px;
-    }
-    .marker {
-        position: absolute;
-        width: 25px;
-        height: 100%;
-        background-color: rgba(0,0,0,0);
-    }
-    .line {
-        position: absolute;
-        left:10px;
-        width: 1px;
-        height: 100%;
-    }
-
-    .marker.suppressed {
-        height: 90%;
-    }
-    .marker.suppressed > .line {
-        background-color: rgb(172, 172, 172);
-    }
-   
-    .marker > .line {
-        background-color: rgb(255, 255, 255);
-    }
-    .ctrl.marker > .line {
-        background-color: red;
-    }
-    .load.marker > .line {
-        background-color: rgb(255, 123, 0);
-    }
-    .start.marker > .line {
-        background-color: rgb(0, 255, 34);
-    }
-    
-    .marker.hoverable,
-    .marker.selected {
-        height: 90%;
-    }
-
-    .marker.hoverable > .line,
-    .marker.selected > .line {
-        left:8px;
-        width: 5px;
-    }
-
-    .marker.hoverable:hover,
-    .marker.selected {
-        height: 100%;
-    }
-    .marker.hoverable:hover > .line,
-    .marker.selected > .line{
-        background-color: rgb(255, 255, 255);
-    }
-    .ctrl.marker.hoverable:hover > .line,
-    .ctrl.marker.selected > .line {
-        background-color: rgb(255, 0, 0);
-    }
-    
 </style>
