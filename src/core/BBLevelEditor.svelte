@@ -314,8 +314,8 @@
         <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
             <Pane size={20}>
                 <div on:drop={handleClickTrackDrop} style="width:100%; height:100%">
+                    <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                     <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
-                        <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                         <VariantWaveforms bind:zoom bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
                     </TimelineZone>
                 </div>
@@ -324,13 +324,9 @@
                 <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
             </Pane>
             <Pane>
+                <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                 <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
-                    <TimelineLanes>
-                        <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                        {#if true}
-                            <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
-                        {/if}
-                    </TimelineLanes>
+                    <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
                 </TimelineZone>
             </Pane>
         </Splitpanes>

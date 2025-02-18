@@ -3,6 +3,7 @@
 .splitpanes.bba-theme {
     .splitpanes__pane {
         background-color: var(--pane-interior-color);
+        position: relative;
     }
 
     .splitpanes__splitter {
