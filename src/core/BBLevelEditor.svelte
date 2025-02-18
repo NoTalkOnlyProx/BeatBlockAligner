@@ -36,6 +36,8 @@
     let offsetControl : OptionalNumber;
     let lbControl : OptionalNumber;
     let vwavs : VariantWaveforms;
+    let showChartEvents : boolean = true;
+    let showLevelEvents : boolean = true;
 
     function handleVariantChanged() {
         console.log("Switching to variant ", selectedVariant);
@@ -294,6 +296,18 @@
                 <div>
                     <OptionalNumber value={timeline.getLoadBeat()} bind:this={lbControl} on:change={handleLBChange}>Song load beat</OptionalNumber>
                 </div>
+                <div>
+                    <label>
+                        Show chart events:
+                        <input type="checkbox" bind:checked={showChartEvents}/>
+                    </label>
+                </div>
+                <div>
+                    <label>
+                        Show level events:
+                        <input type="checkbox" bind:checked={showLevelEvents}/>
+                    </label>
+                </div>
             </div>
         </div>
         <div class="minimapsection">
@@ -322,7 +336,7 @@
                 <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
                     <TimelineLanes>                        
                         <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                        <EventEditor bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
+                        <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
                     </TimelineLanes>
                 </TimelineZone>
             </Pane>

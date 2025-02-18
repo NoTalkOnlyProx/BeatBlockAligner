@@ -74,6 +74,12 @@ export interface BBTimelineUndoPoint {
     chartData: string;
 }
 
+export interface BBSelectionPoint {
+    event : BBTimelineEvent;
+    tail: boolean;
+    other? : BBSelectionPoint;
+}
+
 export class BBTimeLine {
     variant : BBVariantFiles;
     timeControlEvents : BBTimelineEvent[] = [];
@@ -803,7 +809,7 @@ export class BBTimeLine {
 
         /* computeBoundaries set to false to avoid messing with zoom/position */
         this.loadEvents(false);
-        
+
         this.canUndo = this.undoIndex > 0;
         this.canRedo = this.undoIndex < this.undoHistory.length - 1;
     }
