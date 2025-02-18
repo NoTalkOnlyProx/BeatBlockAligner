@@ -1,8 +1,9 @@
 <script lang="ts">
     import { BBTimeLine, type BBTimelineEvent, type BBTimelineOperationMode } from './BBTimeLine';
-    import type { BBPlay, BBSetBPM, BBSetsBPMEvent } from './BBTypes';
+    import type {BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
+    import EventCaptureZone from './EventCaptureZone.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
-    import { isScrollSpecial, mouseToRel, mouseToRelNumeric } from './UXUtils';
+    import { isScrollSpecial, mouseToRel, mouseToRelNumeric, relToRelPixels } from './UXUtils';
     export let timeline : BBTimeLine;
     export let zoom : number;
     export let center : number;
@@ -152,7 +153,7 @@
 
     function getDescription(event : BBTimelineEvent) {
         let type = event.event.type;
-        let bpm = (event.event as (BBSetBPM | BBPlay))?.bpm ?? null;
+        let bpm = (event.event as (BBSetsBPMEvent))?.bpm ?? null;
         let bpmtext = (bpm===null) ? "":`(bpm->${bpm.toFixed(2)}) `
         return `${type}: ${bpmtext}(ang: ${event.event.angle?.toFixed(1)})`;
     }
@@ -161,14 +162,14 @@
         return bi/beatGrid + trueFirstBeat;
     }
 
-    function mapbi(bi : number, timeline : BBTimeLine, beatGrid : number) {
+    function mapbi(bi : number, timeline : BBTimeLine, beatGrid : number, zoom : number) {
         if (bi == 25) {
             console.log("25 recomputed");
         }
-        return timeline.timeToRel(timeline.beatToTime(biToBeat(bi, beatGrid)));
+        return relToRelPixels(timeline.timeToRel(timeline.beatToTime(biToBeat(bi, beatGrid))), zoom);
     }
-    function mapBeat(beat : number, timeline : BBTimeLine) {
-        return timeline.timeToRel(timeline.beatToTime(beat));
+    function mapBeat(beat : number, timeline : BBTimeLine, zoom : number) {
+        return relToRelPixels(timeline.timeToRel(timeline.beatToTime(beat)), zoom);
     }
     function selectControlNear(e : MouseEvent, event : BBTimelineEvent) {
         if (selectedControl || choosingEvent) {
@@ -369,7 +370,7 @@
         if (!selectedControl) {
             return;
         }
-        let nevent : BBSetBPM = {
+        let nevent : BBSetBPMEvent = {
             type: "setBPM",
             angle: (selectedControl.event.angle ?? 0) + 1,
             bpm: (selectedControl.event as BBSetsBPMEvent).bpm ?? timeline.beatToBPM(selectedControl.event.time),
@@ -440,7 +441,7 @@
             mouseBeat = Math.round(mouseBeat * beatGrid)/beatGrid;
         }
         let mouseBPM = timeline.beatToBPM(mouseBeat);
-        let setBPM : BBSetBPM = {
+        let setBPM : BBSetBPMEvent = {
             type: "setBPM",
             time: mouseBeat,
             bpm: mouseBPM,
@@ -454,10 +455,11 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <!-- svelte-ignore a11y-click-events-have-key-events -->
 <div class="lane" bind:this={lane} on:contextmenu={handleRightClick} on:mousemove={handleMouseMove} on:mouseleave={handleMouseExit}>
+    <EventCaptureZone style="height:100%"></EventCaptureZone>
     {#each {length: indices} as _, bi_sub}
         <div
             class="marker"
-            style:left={`calc(${mapbi(bi_sub + firstBeatIndex, timeline, beatGrid)}cqw - 10px)`}
+            style:left={`calc(${mapbi(bi_sub + firstBeatIndex, timeline, beatGrid, zoom)}px - 10px)`}
             class:hoverable={beatSelectable(bi_sub + firstBeatIndex, selectedControl, selectedBI, draggingAny, beatGrid, timeline)}
             class:selected={isSelected(selectedBI, bi_sub + firstBeatIndex)}
             class:suppressed={selectedBI!==(bi_sub + firstBeatIndex) && selectedBI && selectedControl}
@@ -483,20 +485,20 @@
     {/each}
     <div
         class="start marker"
-        style:left={`calc(${mapBeat(trueFirstBeat, timeline)}cqw - 10px)`}>
+        style:left={`calc(${mapBeat(trueFirstBeat, timeline, zoom)}px - 10px)`}>
         <div class="line"></div>
     </div>
     {#if hasLoadBeat}
         <div
             class="load marker"
-            style:left={`calc(${mapBeat(loadBeat, timeline)}cqw - 10px)`}>
+            style:left={`calc(${mapBeat(loadBeat, timeline, zoom)}px - 10px)`}>
             <div class="line"></div>
         </div>
     {/if}
     {#each timeline.timeControlEvents as event,i}
         <div
             class="ctrl marker"
-            style:left={`calc(${mapBeat(event.event.time, timeline)}cqw - 10px)`}
+            style:left={`calc(${mapBeat(event.event.time, timeline, zoom)}px - 10px)`}
             class:hoverable={(!selectedControl)}
             class:selected={event===selectedControl}
 
@@ -637,10 +639,8 @@
     .ttevent.clickable:hover {
         background-color: var(--tooltip-color-hover)
     }
-    
-
     .lane {
-        width: 100cqw;
+        width: 100px;
         height: 150px;
     }
     .marker {

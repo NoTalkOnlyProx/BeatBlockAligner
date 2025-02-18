@@ -65,18 +65,11 @@
     on:mousemove={onDrag}
     class="minimapcontainer"
     >
-    <TimelineZone zoom={zoom} fixed style="width:100%; height:100%">
-        <div style="background-color:yellow;width:10cqw;height:1px;left:10cqw;top:1px"></div>
-        <div style="background-color:yellow;width:10cqw;height:1px;left:20cqw;top:2px"></div>
-        <div style="background-color:yellow;width:10cqw;height:1px;left:10cqw;top:3px"></div>
-        <div style="background-color:yellow;width:10cqw;height:1px;left:40cqw;top:4px"></div>
-        <div style="background-color:yellow;width:10cqw;height:1px;left:10cqw;top:5px"></div>
-        <div style="background-color:yellow;width:10cqw;height:1px;left:60cqw;top:6px"></div>
-        <div style="background-color:yellow;width:10cqw;height:1px;left:10cqw;top:7px"></div>
+    <TimelineZone zoom={zoom} fixed style="height:100%">
         <div
             class="zoombox"
-            style:width={(100/zoom)+"cqw"}
-            style:left={(center - 50/zoom) + "cqw"}
+            style:width={(100/zoom)+"%"}
+            style:left={(center - 50/zoom) + "%"}
         ></div>
     </TimelineZone>
 </div>

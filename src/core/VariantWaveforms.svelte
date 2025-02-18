@@ -5,35 +5,37 @@
     import type { LODAudioData } from "../utils/SoundUtils";
     import TimelineLanes from "./TimelineLanes.svelte";
     import Waveform from "./Waveform.svelte";
-    import type { BBPlay } from "./BBTypes";
+    import type { BBPlayEvent } from "./BBTypes";
+    import { relToRelPixels } from "./UXUtils";
 
     export let timeline : BBTimeLine;
+    export let zoom : number;
 
     /* not incredibly efficient, but it hardly matters, and it's functional so svelte handles it
      * nicely.
      */
-
     function startTime(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
         return timeline.beatToTime(tle.realbeat ?? (tle.event.time ?? 0));
     }
-    function mapStart(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
-        return timeline.timeToRel(startTime(timeline, tle));
+    function mapStart(timeline : BBTimeLine, tle : BBTimelineEvent, zoom : number) : number {
+        return relToRelPixels(timeline.timeToRel(startTime(timeline, tle)), zoom);
     }
     function soundInfo(timeline : BBTimeLine, tle : BBTimelineEvent) : BBSoundFile {
-        return timeline.variant.sounds.get((tle.event as BBPlay).file)!;
+        return timeline.variant.sounds.get((tle.event as BBPlayEvent).file)!;
     }
-    function mapLength(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
+    function mapLength(timeline : BBTimeLine, tle : BBTimelineEvent, zoom : number) : number {
         let start = startTime(timeline, tle);
         let sound = soundInfo(timeline, tle);
         let end = start + sound.soundData.duration;
         let startRel = timeline.timeToRel(start);
         let endRel = timeline.timeToRel(end);
-        return endRel - startRel;
+        let drel = endRel - startRel;
+        return relToRelPixels(drel, zoom);
     }
 
-    function mapRelativeLength(timeline : BBTimeLine, tle : BBTimelineEvent, ct : LODAudioData) {
+    function mapRelativeLength(timeline : BBTimeLine, tle : BBTimelineEvent, ct : LODAudioData, zoom : number) {
         let sound = soundInfo(timeline, tle);
-        return ct.duration/sound.soundData.duration * mapLength(timeline, tle);
+        return ct.duration/sound.soundData.duration * mapLength(timeline, tle, zoom);
     }
 
     async function onFilesDragged(e : CustomEvent, tle : BBTimelineEvent, i : number = -1) {
@@ -70,10 +72,19 @@
 <TimelineLanes style={$$props.style}>
     {#each timeline.timeControlEvents as tle}
         {#if tle.event.type === "play"}
-            <Waveform allowdrop on:filesDragged={(e)=>onFilesDragged(e,tle)} start={mapStart(timeline, tle)} length={mapLength(timeline, tle)} data={soundInfo(timeline, tle).soundData} shown={!(tle.skipped)}></Waveform>
+            <Waveform
+                allowdrop on:filesDragged={(e)=>onFilesDragged(e,tle, 0)}
+                start={mapStart(timeline, tle, zoom)}
+                length={mapLength(timeline, tle, zoom)}
+                data={soundInfo(timeline, tle).soundData}
+                shown={!(tle.skipped)}
+            ></Waveform>
             {#if soundInfo(timeline, tle).clickTracks.length > 0}
                 {#each soundInfo(timeline, tle).clickTracks as ct, i}
-                    <Waveform allowdrop on:filesDragged={(e)=>onFilesDragged(e,tle)} start={mapStart(timeline, tle)} length={mapRelativeLength(timeline, tle, ct)} data={ct}></Waveform>
+                    <Waveform allowdrop on:filesDragged={(e)=>onFilesDragged(e, tle, i+1)}
+                        start={mapStart(timeline, tle, zoom)}
+                        length={mapRelativeLength(timeline, tle, ct, zoom)}
+                        data={ct}></Waveform>
                 {/each}
             {/if}
         {/if}

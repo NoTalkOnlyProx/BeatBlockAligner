@@ -1,8 +1,9 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBSelectionPoint, type BBTimelineEvent } from './BBTimeLine';
-    import { isScrollSpecial, mouseDeltaToRel, mouseToRelNumeric, relToMouseNumeric } from './UXUtils';
+    import { isScrollSpecial, relPixelsToRel, mouseToRelNumeric, relToMouseNumeric, relToRelPixels } from './UXUtils';
     import type { BBDurationEvent } from './BBTypes';
+    import EventCaptureZone from './EventCaptureZone.svelte';
     export let timeline : BBTimeLine;
     export let zoom : number;
     export let center : number;
@@ -169,11 +170,11 @@
         }
         return beat;
     }
-    function spToRel(sp : BBSelectionPoint, timeline : BBTimeLine) {
-        return timeline.timeToRel(timeline.beatToTime(spToBeat(sp)));
+    function spToRelPx(sp : BBSelectionPoint, timeline : BBTimeLine, zoom : number) {
+        return relToRelPixels(timeline.timeToRel(timeline.beatToTime(spToBeat(sp))), zoom);
     }
-    function spToBridge(sp : BBSelectionPoint, timeline: BBTimeLine) {
-        let ret = spToRel(sp.other!, timeline) - spToRel(sp, timeline);
+    function spToBridge(sp : BBSelectionPoint, timeline: BBTimeLine, zoom : number) {
+        let ret = spToRelPx(sp.other!, timeline, zoom) - spToRelPx(sp, timeline, zoom);
         return ret;
     }
 
@@ -241,8 +242,8 @@
         let topAngle = Math.min(startSelectionAngle, endSelectionAngle);
         let botAngle = Math.max(startSelectionAngle, endSelectionAngle);
 
-        let leftx = timeline.timeToRel(leftTime);
-        let rightx = timeline.timeToRel(rightTime);
+        let leftx = relToRelPixels(timeline.timeToRel(leftTime), zoom);
+        let rightx = relToRelPixels(timeline.timeToRel(rightTime), zoom);
         let topy = angToYPos(topAngle, false);
         let boty = angToYPos(botAngle, false);
 
@@ -282,7 +283,7 @@
             /* Fudge factor to make selection a little more intuitive */
             if (sp.tail) {
                 /* Not amazingly efficient.... reconsider? */
-                let fudgedRel = timeline.timeToRel(timeline.beatToTime(beat)) - mouseDeltaToRel(2, zoom);
+                let fudgedRel = timeline.timeToRel(timeline.beatToTime(beat)) - relPixelsToRel(2, zoom);
                 beat = timeline.timeToBeat(timeline.relToTime(fudgedRel));
             }
 
@@ -349,39 +350,38 @@
     on:mousemove={onSelectContinue}
     on:mouseup={onSelectFinish}
 >
-    <div class="sublane">
-        {#each visibleSelectables as sp}
-            <div
-                class="marker"
-                class:chart={sp.event.fromChart}
-                class:selected={isShownAsSelected(sp, selectionCandidates, selectedSelectables)}
-                style:left={`calc(${spToRel(sp, timeline)}cqw)`}
-                style:top={`calc(${angToYPos(sp.event.event.angle ?? 0)}px - 20px)`}
-            >
-                <div class="line fill"></div>
-                <div class="square fill" class:tail={sp.tail}>
-                    <img class="bbicon" src={getIcon(sp.event)} alt={sp.event.event.type}/>
-                </div>
-                {#if sp?.other?.tail}
-                    <div class="bridge"
-                        class:lsel={isShownAsSelected(sp, selectionCandidates, selectedSelectables)}
-                        class:rsel={isShownAsSelected(sp.other, selectionCandidates, selectedSelectables)}
-                        style:width={spToBridge(sp, timeline) + "cqw"}>
-                    </div>
-                {/if}
+    <EventCaptureZone style="height:100%"></EventCaptureZone>
+    {#each visibleSelectables as sp}
+        <div
+            class="marker"
+            class:chart={sp.event.fromChart}
+            class:selected={isShownAsSelected(sp, selectionCandidates, selectedSelectables)}
+            style:left={`${spToRelPx(sp, timeline, zoom)}px`}
+            style:top={`calc(${angToYPos(sp.event.event.angle ?? 0)}px - 20px)`}
+        >
+            <div class="line fill"></div>
+            <div class="square fill" class:tail={sp.tail}>
+                <img class="bbicon" src={getIcon(sp.event)} alt={sp.event.event.type}/>
             </div>
-        {/each}
+            {#if sp?.other?.tail}
+                <div class="bridge"
+                    class:lsel={isShownAsSelected(sp, selectionCandidates, selectedSelectables)}
+                    class:rsel={isShownAsSelected(sp.other, selectionCandidates, selectedSelectables)}
+                    style:width={spToBridge(sp, timeline, zoom) + "px"}>
+                </div>
+            {/if}
+        </div>
+    {/each}
 
-        {#if selecting}
-            <div
-                class="selectionbox"
-                style:left={selectionLeft + "cqw"}
-                style:width={selectionWidth + "cqw"}
-                style:top={selectionTop + "px"}
-                style:height={selectionHeight + "px"}
-            ></div>
-        {/if}
-    </div>
+    {#if selecting}
+        <div
+            class="selectionbox"
+            style:left={selectionLeft + "px"}
+            style:width={selectionWidth + "px"}
+            style:top={selectionTop + "px"}
+            style:height={selectionHeight + "px"}
+        ></div>
+    {/if}
 </div>
 <style>
     .selectionbox {
@@ -398,21 +398,8 @@
         height: 16px;
     }
     .lane {
-        /* -1000cqw to +1100cqw is a hack to make selection work even when it starts outside
-         * the song main area. In a "perfect" world, we'd use proper event bubbling to achieve
-         * this, but that comes at the cost of much messier code. This hack will suffice in
-         * 99.999% of cases, so why not?
-         */
-        left: -1000cqw;
-        width: 2100cqw;
+        width: 100px;
         height: 400px;
-    }
-    /* This exists just to restore us to sane coordinates in light of the above hack. */
-    .sublane {
-        position: absolute;
-        left: 1000cqw;
-        width: 100cqw;
-        height: 100%;
     }
     .marker {
         position: absolute;

@@ -2,6 +2,7 @@
     import { scale } from 'svelte/transition';
     import { BBTimeLine } from './BBTimeLine';
     import { tick } from 'svelte';
+    import { relToRelPixels } from './UXUtils';
     export let timeline : BBTimeLine;
     export let zoom = 0;
     export let center = 0;
@@ -27,23 +28,22 @@
         firstBeatShown = Math.floor((leftBeat/tickUnit)) * tickUnit;
     }
 
-    function maprb(rb : number, firstBeatShown : number, tickUnit : number, timeline : BBTimeLine) {
-        return timeline.timeToRel(timeline.beatToTime(firstBeatShown + rb * tickUnit));
+    function maprb(rb : number, firstBeatShown : number, tickUnit : number, zoom : number, timeline : BBTimeLine) {
+        let rel = timeline.timeToRel(timeline.beatToTime(firstBeatShown + rb * tickUnit));
+        return relToRelPixels(rel, zoom);
     }
 </script>
 <div class="lane">
     {#each {length: beatsShown} as _, rb}
-        <div class="marker" style:left={maprb(rb, firstBeatShown, tickUnit, timeline) + "cqw"}></div>
+        <div class="marker" style:left={maprb(rb, firstBeatShown, tickUnit, zoom, timeline) + "px"}></div>
     {/each}
 </div>
 <style>
     .lane {
-        width: 100cqw;
+        width: 100px;
         height: 100%;
         z-index: 0;
         position: absolute;
-        left: 0cqw;
-        top: 0cqw;
     }
     .marker {
         position: absolute;

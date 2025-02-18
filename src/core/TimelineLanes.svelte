@@ -6,8 +6,8 @@
 </div>
 <style>
     .lanes {
-        left: 0cqw;
-        width: 100cqw;
+        left: 0%;
+        width: 100%;
         display: flex;
         flex-direction: column;
     }

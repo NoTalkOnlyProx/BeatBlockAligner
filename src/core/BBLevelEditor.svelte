@@ -12,7 +12,7 @@
     import Crosshair from './Crosshair.svelte';
     import TimeSpaceMarkers from './TimeSpaceMarkers.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
-    import { mouseDeltaToRel, mouseToRelNumeric } from './UXUtils';
+    import { relPixelsToRel, mouseToRelNumeric } from './UXUtils';
     export let bbll : BBLevelLoader;
     let maxzoom = 4000;
     let zoom = 0.75;
@@ -140,7 +140,7 @@
         if (isDragging)
         {
             let dx = e.clientX - dragStart;
-            let drel = mouseDeltaToRel(dx, zoom);
+            let drel = relPixelsToRel(dx, zoom);
             center = dragStartCenter - drel;
         }
     }
@@ -319,21 +319,21 @@
         <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
             <Pane size={20}>
                 <div on:drop={handleClickTrackDrop} style="width:100%; height:100%">
-                    <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                    <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
                         <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                        <VariantWaveforms bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
+                        <VariantWaveforms bind:zoom bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
                     </TimelineZone>
                 </div>
             </Pane>
             <Pane size={20}>
-                <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
                     <TimelineLanes>
                         <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
                     </TimelineLanes>
                 </TimelineZone>
             </Pane>
             <Pane>
-                <TimelineZone bind:center bind:zoom control style="width:100%; height:100%">
+                <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
                     <TimelineLanes>                        
                         <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                         <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>

@@ -5,8 +5,9 @@
 </script>
 <div style={$$props.style} class="tzcontainer">
     <div class="tzdomain"
-        style:width={fixed ? "100%" : ((zoom * 100) + "vw")}
-        style:left={fixed ? "0px" : ((50 - center * zoom) + "vw")}>
+        style:left={fixed ? "0px" : ((50 - center * zoom) + "vw")}
+        style:width={fixed ? "100%" : "100px"}
+        >
         <slot />
     </div>
 </div>

@@ -8,7 +8,6 @@
 
     export let data : LODAudioData;
     let cv : HTMLCanvasElement;
-    let lastID : number = 0;
     let container : HTMLDivElement;
     export let start;
     export let length;
@@ -27,12 +26,14 @@
     onMount(() => {
         animate();
 	});
-
-    
+    let lastID : number = 0;
     function animate() {
         render();
         lastID = requestAnimationFrame(animate);
     }
+    onDestroy(() => {
+        cancelAnimationFrame(lastID);
+	});
 
     /* Doing this outside of svelte because it needs to be snappy and optimized. */
     let lastMinX = -1;
@@ -150,10 +151,6 @@
             dragging = false;
         }
     }
-
-    onDestroy(() => {
-        cancelAnimationFrame(lastID);
-	});
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -162,7 +159,7 @@
     on:dragover={handleDragover}
     on:dragenter={handleDragEnter}
     on:dragleave={handleDragLeave}
-    bind:this={container} class="waveform" style={$$props.style} style:left={start + "cqw"} style:height={"100px"} style:width={length + "cqw"} >
+    bind:this={container} class="waveform" style={$$props.style} style:left={start + "px"} style:height={"100px"} style:width={length + "px"} >
     <canvas class="waverender" bind:this={cv} style:background-color={current_bgcol}>
 
     </canvas>
