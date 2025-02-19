@@ -8,7 +8,7 @@
     export let zoom : number;
     export let center : number;
     const angleHeight = 320;
-    const marginHeight = 40;
+    const marginHeight = 60;
     let lane : HTMLElement;
 
     export let showChartEvents : boolean = true;
@@ -431,12 +431,53 @@
             recomputeSelectEnd(event.clientX, event.clientY);
         }
     }
+
+    let lHandleTime = 0;
+    let rHandleTime = 0;
     export function onSelectFinish(event : MouseEvent) {
         if (selecting) {
-            selectedSelectables = selectionCandidates;
-            selectionCandidates = [];
             selecting = false;
+
+            /* Do nothing if the selection wasn't changed */
+            if (selectedSelectables.length === selectionCandidates.length) {
+                let allSame = true;
+                for (let sp of selectedSelectables) {
+                    if (!selectionCandidates.includes(sp)) {
+                        allSame = false;
+                        break;
+                    }
+                }
+                if (allSame) {
+                    return;
+                }
+            }
+
+            /* Selection DID change */
+            selectedSelectables = selectionCandidates;
+
+            /* Therefore, recompute the handles */
+            let lHandleBeat = 99999;
+            let rHandleBeat = -99999;
+
+            for (let sp of selectedSelectables) {
+                let beat = spToBeat(sp);
+                lHandleBeat = Math.min(beat, lHandleBeat);
+                rHandleBeat = Math.max(beat, rHandleBeat);
+            }
+
+            lHandleTime = timeline.beatToTime(lHandleBeat);
+            rHandleTime = timeline.beatToTime(rHandleBeat);
         }
+    }
+
+    function preventNavDrag(event : MouseEvent) {
+        if (event.button != 1) {   
+            event.stopPropagation();
+        }
+    }
+
+    function timeToHandleX(time : number, timeline : BBTimeLine, zoom : number, center : number) {
+        return relToPixels(timeline.timeToRel(time), zoom, center);
     }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -455,11 +496,83 @@
             style:height={selectionHeight + "px"}
         ></div>
     {/if}
+    {#if !selecting && selectedSelectables.length > 0}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+            class="bracket"
+            on:mousedown={preventNavDrag}
+            style:left={timeToHandleX(lHandleTime, timeline, zoom, center) + "px"}
+        >
+            <div class="buttonzone left">
+                <button>Move</button>
+                <button>Stretch</button>
+            </div>
+            <div class="buttonzone bottom left">
+                <button>Adjust</button>
+                <button>Quantize</button>
+            </div>
+            <div class = "line"></div>
+        </div>
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+            class="bracket"
+            on:mousedown={preventNavDrag}
+            style:left={timeToHandleX(rHandleTime, timeline, zoom, center) + "px"}
+        >
+            <div class="buttonzone">
+                <button>Move</button>
+                <button>Stretch</button>
+            </div>
+            <div class="buttonzone bottom">
+                <button>Adjust</button>
+                <button>Quantize</button>
+            </div>
+            <div class = "line"></div>
+        </div>
+    {/if}
 </div>
 <style>
+    .bracket {
+        position: absolute;
+        height: 440px;
+    }
+
+    .bracket > .line {
+        position: absolute;
+        height: 100%;
+        width: 1px;
+        left: 0px;
+        background-color: white;
+    }
+
+    .buttonzone {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        display:flex;
+        flex-direction: column;
+        min-width:0px;
+        background-color: var(--tooltip-color);
+    }
+    .buttonzone.left {
+        right:0px;
+        left:auto;
+    }
+    .buttonzone.bottom {
+        bottom:0px;
+        top:auto;
+    }
+
+    .buttonzone button {
+        border: none;
+        display: block;
+        color: black;
+        pointer-events: auto;
+    }
+
     .container {
         width: 100px;
-        height: 400px;
+        height: 440px;
     }
     .drawzone {
         width: 100%;
