@@ -10,6 +10,11 @@
     export let center : number;
     export let co : boolean;
     export let coTime : number;
+    let clicksEnabled : boolean = true;
+    export function setClicksEnabled(val : boolean) {
+        console.log("clicks enabled?", val);
+        clicksEnabled = val;
+    }
 
     let selectedControl : (BBTimelineEvent | null) = null;
     let selectedTI : (number | null) = null;
@@ -423,7 +428,38 @@
         choosingEvent = false;
     }
 
+    /* Basically, the parent needs the ability to cancel a click if the mouse interaction turns
+     * out to be drag.
+     * Cancelling natively requires us to either prevent onMouseDown or onMouseUp.
+     * We cannot prevent onMouseDown, because at that point, it is not clear that we are dealing
+     * with a drag.
+     * We cannot prevent onMouseUp, because that event will always reach this child before it
+     * reaches the parent.
+     * So, this child needs to have the ability to cancel its own onMouseUp, essentially.
+     * 
+     * To prevent clicks that did NOT start within this element, we need to make that only
+     * apply if a click is actively ongoing.
+     */
+    let isClickInProgress = false;
+    let clickCancelled = false;
+    function handleClickStart() {
+        isClickInProgress = true;
+        clickCancelled = false;
+    }
+
+    export function cancelClick() {
+        if (isClickInProgress) {
+            clickCancelled = true;
+        }
+    }
+
     function handleMouseClick(e : MouseEvent) {
+        isClickInProgress = false;
+        
+        if (clickCancelled) {
+            return;
+        }
+
         if (choosingEvent || isScrollSpecial(e)) {
             return;
         }
@@ -479,6 +515,7 @@
         class="editzone" bind:this={cv}
         on:mousemove={handleMouseMove}
         on:mouseleave={handleMouseExit}
+        on:mousedown={handleClickStart}
         on:click={handleMouseClick}
         on:contextmenu={handleRightClick}
     ></canvas>

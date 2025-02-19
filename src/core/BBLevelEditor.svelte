@@ -135,6 +135,10 @@
         if (isDragging)
         {
             let dx = e.clientX - dragStart;
+            /* Dragged by more than a little bit, do not count as a click in timespace editor */
+            if (Math.abs(dx) > 2) {
+                tsEditor.cancelClick();
+            }
             let drel = relPixelsToRel(dx, zoom);
             center = dragStartCenter - drel;
         }
@@ -325,9 +329,7 @@
             </Pane>
             <Pane>
                 <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
-                    <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
-                </TimelineZone>
+                <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
             </Pane>
         </Splitpanes>
         <Crosshair bind:co bind:coTime bind:zoom bind:center bind:timeline></Crosshair>
@@ -337,6 +339,9 @@
 <style global lang="scss">
     @use "bba-theme.scss";
     @import "global.css";
+    .nopointer {
+        pointer-events: none;
+    }
     .topmargin {
         height:20px;
     }
