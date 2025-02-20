@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
-    import { BBTimeLine, type BBSelectionPoint, type BBTimelineEvent } from './BBTimeLine';
+    import { BBTimeLine, type BBSelectionPoint, type BBTimelineApplyOpBeatCallback, type BBTimelineApplyOpTimeCallback, type BBTimelineEvent } from './BBTimeLine';
     import { isScrollSpecial, relPixelsToRel, pixelsToRel, relToRelPixels, relToPixels, preloadIcons, eventIcons, getIcon, getEventIconName } from './UXUtils';
     import type { BBDurationEvent } from './BBTypes';
 
@@ -22,6 +22,31 @@
     let allSelectables : BBSelectionPoint[];
     let visibleSelectables : BBSelectionPoint[] = [];
     let selectedSelectables : BBSelectionPoint[] = [];
+
+    /* I am pushing the limits of what might be considered an anti-pattern here... */
+    $: timeline, registerCallbacks();
+    let lastTimeline : BBTimeLine | undefined = undefined;
+    function registerCallbacks() {
+        if (timeline == lastTimeline) {
+            return;
+        }
+        /* timelines are never reused after new one is generated, so it is safe
+         * to not bother with unregisterring callbacks.
+         */
+        timeline.on("continueOperation", handleContinueOperation);
+        timeline.on("beginOperation", handleBeginOperation);
+    }
+
+    let lHandleStartTime = 0;
+    let rHandleStartTime = 0;
+    function handleBeginOperation(opstate : BBTimelineApplyOpBeatCallback) {
+        lHandleStartTime = lHandleTime;
+        rHandleStartTime = rHandleTime;
+    }
+    function handleContinueOperation(opstate : BBTimelineApplyOpBeatCallback, applyTime : BBTimelineApplyOpTimeCallback, applyBeat : BBTimelineApplyOpBeatCallback) {
+        lHandleTime = applyTime(lHandleStartTime).time;
+        rHandleTime = applyTime(rHandleStartTime).time;
+    }
 
     $: timeline, computeSelectables();
     function computeSelectables() {
