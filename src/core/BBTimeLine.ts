@@ -37,7 +37,7 @@ export type TimeBeatPoint = {
     bpm: number;
 }
 
-export type BBTimelineOperationMode = "MoveKeepBeats" | "MoveKeepTimes" | "StretchKeepAllBeats" | "StretchKeepAllTimes" | "StretchKeepAfter";
+export type BBTimelineOperationMode = "MoveKeepBeats" | "MoveKeepTimes" | "StretchKeepAllBeats" | "StretchKeepAllTimes" | "StretchKeepAfter" | "AlterEvents";
 export interface BBTimelineEventInitialState {
     event : BBTimelineEvent;
     originalTime : number;
@@ -45,22 +45,33 @@ export interface BBTimelineEventInitialState {
     originalBPM : number;
 }
 
-export interface BBTimelineOperationState {
+
+export interface BBTimelineOperationParams {
+    /* Settings */
     mode : BBTimelineOperationMode;
-    snap : boolean;
-    snapGrid : number;
-    initialState : Map<BBTimelineEvent, BBTimelineEventInitialState>;
-    controlTarget?: BBTimelineEventInitialState;
-    nextControl?: BBTimelineEventInitialState;
+    snap? : boolean;
+    snapGrid? : number;
+    mustSave? : boolean;
+
+    /* Possible Targets */
+    targetControl?: BBTimelineEvent;
     targetTick?: number;
     targetTickOriginalTime?: number;
+}
+
+export interface BBTimelineOperationState extends  BBTimelineOperationParams {
+    /* Individual initial event states */
+    initialState : Map<BBTimelineEvent, BBTimelineEventInitialState>;
+
+    /* Initial state of control and next control, if existing / relevant */
+    controlInitialState?: BBTimelineEventInitialState;
+    nextControlInitialState?: BBTimelineEventInitialState;
 
     /* The timespace mapping before attempting operation */
     initialMapping?: TimeBeatPoint[];
 
     /* A timespace mapping based on all time control events prior to the target control */
     entryMapping?: TimeBeatPoint[];
-    mustSave : boolean;
 }
 
 
@@ -93,6 +104,7 @@ export interface BBSelectionPoint {
  */
 export type BBTimelineApplyOpTimeCallback = (time : number) => {time : number, beat : number};
 export type BBTimelineApplyOpBeatCallback = (beat : number) => {time : number, beat : number};
+export type BBTimelineApplyKeepBeatLogic = (otime : number, obeat : number) => boolean;
 
 export class BBTimeLine  extends EventEmitter  {
     variant : BBVariantFiles;
@@ -350,8 +362,8 @@ export class BBTimeLine  extends EventEmitter  {
 
     setBPM(ev : BBTimelineEvent, nbpm : number | null, mode : BBTimelineOperationMode,
            snap : boolean,  snapGrid : number) {
-        this.beginBPMOperation(ev, mode, snap, snapGrid);
-        this.finishBPMOperation(nbpm);
+        this.beginTSBPMOperation(ev, mode, snap, snapGrid);
+        this.finishTSBPMOperation(nbpm);
     }
 
     timeToBPM(time : number, mapping : TimeBeatPoint[] = this.mapping) {
@@ -463,13 +475,18 @@ export class BBTimeLine  extends EventEmitter  {
         return this.lookup.get(event);
     }
 
+    /*
+    mode : BBTimelineOperationMode, snap : boolean = false, snapGrid : number,
+                   targetEvent : BBTimelineEvent | undefined = undefined, mustSave : boolean, 
+    */
+
     operationState : BBTimelineOperationState | undefined;
-    beginOperation(mode : BBTimelineOperationMode, snap : boolean = false, snapGrid : number,
-                   targetEvent : BBTimelineEvent | undefined = undefined, mustSave : boolean, extraParams : Partial<BBTimelineOperationState> = {}) {
-        let initialState : Map<BBTimelineEvent, BBTimelineEventInitialState> = new Map();
-        let targetEventInitial = undefined;
-        let nextEventInitial = undefined;
+    beginOperation(params : BBTimelineOperationParams) {
+        /* Make sure we are dealing with up-to-date timespace */
         this.recomputeTimeSpace();
+
+        /* Collect initial state of all events */
+        let initialState : Map<BBTimelineEvent, BBTimelineEventInitialState> = new Map();
         for (let event of this.allEvents) {
             let evis : BBTimelineEventInitialState = {
                 event,
@@ -478,71 +495,83 @@ export class BBTimeLine  extends EventEmitter  {
                 originalBPM: (event.event as BBSetsBPMEvent).bpm ?? this.beatToBPM(event.event.time)
             }
             initialState.set(event, evis);
-            if (event === targetEvent) {
-                targetEventInitial = evis;
-                continue;
-            }
-            if (targetEventInitial && !nextEventInitial) {
-                nextEventInitial = evis;
+        }
+
+        /* Collect time control info if relevant */
+        let controlEvent = params.targetControl;
+        let nextControlEvent = undefined;
+
+        /* Find nextControlEvent if it exists */
+        if (controlEvent) {
+            let nextIndex = this.allEvents.indexOf(controlEvent);
+            if (nextIndex < this.allEvents.length - 2) {
+                nextControlEvent = this.allEvents[nextIndex];
             }
         }
+
+        /* Grab initial states for targeted special events */
+        let controlInitialState = controlEvent ? initialState.get(controlEvent) : undefined;
+        let nextControlInitialState = nextControlEvent ? initialState.get(nextControlEvent) : undefined;
+
         this.operationState = {
-            mode,
-            snap,
-            snapGrid,
             initialState,
-            controlTarget: targetEventInitial,
-            nextControl: nextEventInitial,
-            entryMapping: this.computeTimeSpace(targetEvent?.event),
+            controlInitialState,
+            nextControlInitialState,
+            entryMapping: this.computeTimeSpace(params.targetControl?.event),
             initialMapping: [...this.mapping],
-            mustSave,
-            ...extraParams
+            ...params
         }
-        this.emit("beginOperation", this.operationState);
     }
 
-
-    beginStretchOperation(event : BBTimelineEvent, mode : BBTimelineOperationMode,
+    beginTSStretchOperation(event : BBTimelineEvent, mode : BBTimelineOperationMode,
                           snap : boolean,  snapGrid : number, targetTick : number) {
-        this.beginBPMOperation(event, mode, snap, snapGrid, {
+        this.beginTSBPMOperation(event, mode, snap, snapGrid, {
             targetTick,
             targetTickOriginalTime: this.beatToTime(this.tickToBeat(targetTick, snapGrid))
         });
         /* This is a bit hacky, but modify the initial state with some extra info */
     }
 
-    beginBPMOperation(event : BBTimelineEvent, mode : BBTimelineOperationMode,
-                      snap : boolean, snapGrid : number, extraParams : Partial<BBTimelineOperationState> = {}) {
+    beginTSBPMOperation(targetControl : BBTimelineEvent, mode : BBTimelineOperationMode,
+                      snap : boolean, snapGrid : number, extraParams : Partial<BBTimelineOperationParams> = {}) {
         if (!["StretchKeepAllBeats", "StretchKeepAllTimes", "StretchKeepAfter"].includes(mode)) {
             throw new Error("Invalid BPM/stretch mode");
         }
-        this.beginOperation(mode, snap, snapGrid, event, true, extraParams);
+        this.beginOperation({mode, snap, snapGrid, targetControl, mustSave:true, ...extraParams});
+        this.alertBeginTimespaceOp();
     }
 
-    beginMoveOperation(event : BBTimelineEvent, mode : BBTimelineOperationMode,
+    beginTSMoveOperation(targetControl : BBTimelineEvent, mode : BBTimelineOperationMode,
                        snap : boolean, snapGrid : number, mustSave : boolean) {
         if (!["MoveKeepBeats","MoveKeepTimes"].includes(mode)) {
             throw new Error("Invalid move mode");
         }
-        this.beginOperation(mode, snap, snapGrid, event, mustSave);
+        this.beginOperation({mode, snap, snapGrid, targetControl, mustSave});
+        this.alertBeginTimespaceOp();
     }
 
-    continueStretchOperation(deltaTime : number) {
+    beginTSAlterEvents() {
+        this.beginOperation({mode:"AlterEvents"});
+        this.alertBeginTimespaceOp();
+    }
+
+    continueTSStretchOperation(deltaTime : number) {
         /* We implement this, essentially, as a wrapper for continueBPMOperation */
         let opstate = this.operationState!;
 
         /* use proportional time to calculate new required BPM */
-        let originalTimeDelta = opstate.targetTickOriginalTime! - opstate.controlTarget!.originalTime;
+        let originalTimeDelta = opstate.targetTickOriginalTime! - opstate.controlInitialState!.originalTime;
         let newBeatTime = opstate.targetTickOriginalTime! + deltaTime;
-        let newTimeDelta = newBeatTime - opstate.controlTarget!.originalTime;
-        let newBPM = originalTimeDelta/newTimeDelta * opstate.controlTarget!.originalBPM!;
+        let newTimeDelta = newBeatTime - opstate.controlInitialState!.originalTime;
+        let newBPM = originalTimeDelta/newTimeDelta * opstate.controlInitialState!.originalBPM!;
 
-        this.continueBPMOperation(newBPM);
+        this.continueTSBPMOperation(newBPM);
     }
 
-    continueBPMOperation(newBPM : number | null) {
+    continueTSBPMOperation(newBPM : number | null) {
         let opstate = this.operationState!;
-        let nextEvent = opstate.initialState.get(this.getControlAfter(opstate.controlTarget?.event));
+        let snapGrid = opstate.snapGrid ?? 1;
+        let nextEvent = opstate.initialState.get(this.getControlAfter(opstate.controlInitialState?.event));
 
         if (newBPM != null && (newBPM <= 0 || newBPM > 10000)) {
             newBPM = 10000;
@@ -563,23 +592,23 @@ export class BBTimeLine  extends EventEmitter  {
                  * bpm = ((n + phaseshift) / snapGrid * 60)/dt
                  * 
                  */
-                let currentTime = opstate.controlTarget!.originalTime;
+                let currentTime = opstate.controlInitialState!.originalTime;
                 let nextTime = nextEvent.originalTime;
                 let dt = nextTime - currentTime;
-                let originalTickDelta = dt * opstate.controlTarget!.originalBPM!/60 * opstate.snapGrid;
+                let originalTickDelta = dt * opstate.controlInitialState!.originalBPM!/60 * snapGrid;
                 let originalPhaseShift = originalTickDelta%1.0;
-                let tickDelta = dt * newBPM/60 * opstate.snapGrid;
+                let tickDelta = dt * newBPM/60 * snapGrid;
                 let quantizedTickDelta = Math.round(tickDelta) + originalPhaseShift;
-                let quantizedBPM = quantizedTickDelta * 60 / (opstate.snapGrid * dt);
+                let quantizedBPM = quantizedTickDelta * 60 / (snapGrid * dt);
                 newBPM = quantizedBPM;
             }
         }
 
         /* No matter what, we set the BPM of the operation target. */
         if (newBPM == null) {
-            delete (opstate.controlTarget!.event.event as BBSetsBPMEvent).bpm;
+            delete (opstate.controlInitialState!.event.event as BBSetsBPMEvent).bpm;
         } else {
-            (opstate.controlTarget!.event.event as BBSetsBPMEvent).bpm = newBPM;
+            (opstate.controlInitialState!.event.event as BBSetsBPMEvent).bpm = newBPM;
         }
 
         /* Now, the tricky part. What happens to everything afterwards? */
@@ -589,88 +618,43 @@ export class BBTimeLine  extends EventEmitter  {
             (opstate.mode == "StretchKeepAfter" && !nextEvent)) {
             /* In this case, nothing! Just recompute timespace */
             this.recomputeTimeSpace();
-            this.alertContinueKeepBeats();
+            this.alertContinueTSKeepBeats();
             return;
         }
         /* Everything is time-remapped */
         if (opstate.mode == "StretchKeepAllTimes") {
-            this.restitchTimes(opstate.controlTarget!.originalTime);
+            this.restitchTimes(opstate.controlInitialState!.originalTime);
             return;
         }
         /* Partial time-remapping */
         if (opstate.mode == "StretchKeepAfter" && nextEvent) {
             console.log("Partial remap!!");
-            this.restitchTimes(opstate.controlTarget!.originalTime, nextEvent.originalTime);
+            this.restitchTimes(opstate.controlInitialState!.originalTime, nextEvent.originalTime);
             return;
         }
         throw new Error("Impossible state during BPM op continue");
     }
 
-    alertContinueKeepBeats() {
-        let opstate = this.operationState!;
-
-        let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
-            let obeat = this.timeToBeat(otime, opstate.initialMapping);
-            let ntime = this.beatToTime(obeat);
-            return {time: ntime, beat: obeat};
-        }
-        let applyBeat : BBTimelineApplyOpTimeCallback = (obeat : number) => {
-            let ntime = this.beatToTime(obeat);
-            return {time: ntime, beat: obeat};
-        }
-        this.emit("continueOperation", this.operationState, applyTime, applyBeat);
-    }
-
-    alertContinueKeepTime(ignoreBefore : number) {
-        let opstate = this.operationState!;
-        let ignoreBeforeBeat = this.timeToBeat(ignoreBefore);
-
-        let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
-            if (otime < ignoreBefore) {
-                /* Preserve Beat */
-                let obeat = this.timeToBeat(otime, opstate.initialMapping);
-                let ntime = this.beatToTime(obeat);
-                return {time: ntime, beat: obeat};
-            } else {
-                /* Preserve Time */
-                let nbeat = this.timeToBeat(otime);
-                return {time: otime, beat: nbeat};
-            }
-        }
-        let applyBeat : BBTimelineApplyOpTimeCallback = (obeat : number) => {
-            if (obeat < ignoreBeforeBeat) {
-                /* Preserve Beat */
-                let ntime = this.beatToTime(obeat);
-                return {time: ntime, beat: obeat};
-            } else {
-                /* Preserve Time */
-                let otime = this.beatToTime(obeat, opstate.initialMapping);
-                let nbeat = this.timeToBeat(otime);
-                return {time: otime, beat: nbeat};
-            }
-        }
-        this.emit("continueOperation", this.operationState, applyTime, applyBeat);
-    }
-
-    continueMoveOperation(deltaTime : number) {
+    continueTSMoveOperation(deltaTime : number) {
         let opstate = this.operationState!;
 
         /* First, move the target. This is straightforward in both modes */
-        let newTime = opstate.controlTarget!.originalTime + deltaTime;
+        let newTime = opstate.controlInitialState!.originalTime + deltaTime;
         let newBeat = this.timeToBeat(newTime, opstate.entryMapping);
 
         if (opstate.snap) {
-            newBeat = Math.round(newBeat * opstate.snapGrid)/opstate.snapGrid;
+            let snapGrid = opstate.snapGrid ?? 1
+            newBeat = Math.round(newBeat * snapGrid)/snapGrid;
             newTime = this.beatToTime(newBeat, opstate.entryMapping);
         }
 
-        opstate.controlTarget!.event.event.time = newBeat;
+        opstate.controlInitialState!.event.event.time = newBeat;
         
         if (opstate.mode == "MoveKeepBeats") {
             /* We ONLY needed to move the target and update timespace in this mode. */
             /* So, just  recompute the timespace and exit! */
             this.recomputeTimeSpace();
-            this.alertContinueKeepBeats();
+            this.alertContinueTSKeepBeats();
             return;
         } else if (opstate.mode == "MoveKeepTimes") {
             /* In this mode, we must compute new beat values for everything except the target,
@@ -680,25 +664,69 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
-    finishStretchOperation(deltaTime : number) {
+    finishTSAlterEvents() {
+        //TODO: When I redo the concept of "keep beats/keep time" it will be a
+        //configuration parameter that we'll pass here.
+        //For now, though, all event changes are just universally "keep beats"
+        this.alertContinueTSKeepBeats();
+    }
+
+    finishTSStretchOperation(deltaTime : number) {
         let opstate = this.operationState!;
-        this.continueStretchOperation(deltaTime);
+        this.continueTSStretchOperation(deltaTime);
         if (deltaTime != 0 || opstate.mustSave) {
             this.saveUndoPoint("stretch", false);
         }
     }
 
-    finishBPMOperation(finalBPM : number | null) {
-        this.continueBPMOperation(finalBPM);
+    finishTSBPMOperation(finalBPM : number | null) {
+        this.continueTSBPMOperation(finalBPM);
         this.saveUndoPoint("setBPM", true);
     }
 
-    finishMoveOperation(deltaTime : number) {
+    finishTSMoveOperation(deltaTime : number) {
         let opstate = this.operationState!;
-        this.continueMoveOperation(deltaTime);
+        this.continueTSMoveOperation(deltaTime);
         if (deltaTime != 0 || opstate.mustSave) {
             this.saveUndoPoint("moveControl", false);
         }
+    }
+
+    alertContinueTSKeepBeats() {
+        this.alertContinueTimespaceOp(()=>true);
+    }
+    alertContinueTSKeepTimes() {
+        this.alertContinueTimespaceOp(()=>false);
+    }
+    alertContinueTSKeepTimesAfterTime(afterTime : number) {
+        this.alertContinueTimespaceOp((otime, obeat)=>{return otime < afterTime});
+    }
+
+    alertBeginTimespaceOp() {
+        this.emit("beginOperation", this.operationState);
+    }
+
+    /* if logic not provided, this assumes keep beats */
+    alertContinueTimespaceOp(keepBeatLogic : BBTimelineApplyKeepBeatLogic = ()=>true) {
+        let opstate = this.operationState!;
+        let apply = (otime : number, obeat : number) => {
+            if (keepBeatLogic(otime, obeat)) {
+                /* Preserve Beat */
+                let ntime = this.beatToTime(obeat);
+                return {time: ntime, beat: obeat};
+            } else {
+                /* Preserve Time */
+                let nbeat = this.timeToBeat(otime);
+                return {time: otime, beat: nbeat};
+            }
+        }
+        let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
+            return apply(otime, this.timeToBeat(otime, opstate.initialMapping));
+        }
+        let applyBeat : BBTimelineApplyOpTimeCallback = (obeat : number) => {
+            return apply(this.beatToTime(obeat, opstate.initialMapping), obeat);
+        }
+        this.emit("continueOperation", this.operationState, applyTime, applyBeat);
     }
 
     /* Compute new beat values for everything except the target, such that original times are
@@ -719,8 +747,8 @@ export class BBTimeLine  extends EventEmitter  {
         let fixedtcis : BBTimelineEventInitialState[] = this.timeControlEvents.map(tce => opstate.initialState.get(tce)!);
 
         fixedtcis.sort((a, b) => {
-            let atime = (a===opstate.controlTarget) ? newTargetTime : a.originalTime;
-            let btime = (b===opstate.controlTarget) ? newTargetTime : b.originalTime;
+            let atime = (a===opstate.controlInitialState) ? newTargetTime : a.originalTime;
+            let btime = (b===opstate.controlInitialState) ? newTargetTime : b.originalTime;
             return atime - btime;
         })
 
@@ -728,7 +756,7 @@ export class BBTimeLine  extends EventEmitter  {
 
         for (let tcis of fixedtcis) {
             let lts = this.computeTimeSpace(tcis.event.event, fixedtce);
-            let targetTime = (tcis === opstate.controlTarget) ? newTargetTime : tcis.originalTime;
+            let targetTime = (tcis === opstate.controlInitialState) ? newTargetTime : tcis.originalTime;
             tcis.event.event.time = this.timeToBeat(targetTime, lts);
         }
 
@@ -746,10 +774,23 @@ export class BBTimeLine  extends EventEmitter  {
         }
 
         /* Finally finally, remap virtual events too */
-        this.alertContinueKeepTime(ignoreBefore);
+        this.alertContinueTSKeepTimesAfterTime(ignoreBefore);
     }
 
-    deleteEvent(event : BBTimelineEvent) {
+
+    /* These functions are a tiny bit cursed.
+     * They half-assume that we might add ***any*** type of event,
+     * but also half-assume that all events added impact timespace.
+     * In both cases, the assumption made is the more conservative, so these functions
+     * work in both situations.
+     * 
+     * Right now, we only ever add timespace control events, so this could be simplified.
+     * But I want to keep the option open to change my mind on that.
+     */
+
+    deleteEvent(event : BBTimelineEvent, keepBeats : boolean = true) {
+        this.beginTSAlterEvents();
+
         if (this.timeControlEvents.includes(event)) {
             this.timeControlEvents = this.timeControlEvents.filter(e => e != event);
             this.recomputeTimeSpace();
@@ -761,12 +802,17 @@ export class BBTimeLine  extends EventEmitter  {
         this.allEvents = this.allEvents.filter(e => e != event);
         this.variant.level.events = this.variant.level.events.filter(e => e != event.event);
         this.lookup.delete(event.event);
+
+        this.finishTSAlterEvents();
+
         this.saveUndoPoint("deleteEvent", false);
     }
 
     addEvent(event : BBEvent, saveUndo = true, toChart : boolean = false) : BBTimelineEvent {
         let level = this.variant.level;
         let chart = this.variant.chart;
+
+        this.beginTSAlterEvents();
 
         /* For good measure */
         let clone : BBEvent = {...event};
@@ -787,6 +833,8 @@ export class BBTimeLine  extends EventEmitter  {
         if (this.timeControlEvents.includes(tlev)) {
             this.recomputeTimeSpace();
         }
+
+        this.finishTSAlterEvents();
 
         if (saveUndo) {
             this.saveUndoPoint("addEvent", false);

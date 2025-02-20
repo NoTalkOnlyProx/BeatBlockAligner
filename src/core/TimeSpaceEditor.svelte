@@ -329,7 +329,7 @@
         }
         draggingControl = true;
         coTime = timeline.beatToTime(selectedControl!.event.time);
-        timeline.beginMoveOperation(selectedControl!, controlMoveMode, snapToBeat, beatGrid, mustSave);
+        timeline.beginTSMoveOperation(selectedControl!, controlMoveMode, snapToBeat, beatGrid, mustSave);
         startDrag(event);
         event.preventDefault();
         event.stopPropagation();
@@ -344,7 +344,7 @@
         }
         draggingBeat = true;
         coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI, beatGrid));
-        timeline.beginStretchOperation(selectedControl!, beatStretchMode, snapToBeat, beatGrid, selectedTI);
+        timeline.beginTSStretchOperation(selectedControl!, beatStretchMode, snapToBeat, beatGrid, selectedTI);
         startDrag(event);
     }
     
@@ -385,12 +385,12 @@
         if (draggingControl) {
             event.preventDefault();
             draggingControl = false;
-            timeline.finishMoveOperation(dragTime - dragInitialTime);
+            timeline.finishTSMoveOperation(dragTime - dragInitialTime);
         }
         if (draggingBeat) {
             event.preventDefault();
             draggingBeat = false;
-            timeline.finishStretchOperation(dragTime - dragInitialTime);
+            timeline.finishTSStretchOperation(dragTime - dragInitialTime);
         }
 
         if (!TIIsValidSelection(selectedTI, selectedControl, beatGrid)) {
@@ -408,11 +408,11 @@
         }
         let dragTime = mouseToTime(event.clientX);
         if (draggingControl) {
-            timeline.continueMoveOperation(dragTime - dragInitialTime);
+            timeline.continueTSMoveOperation(dragTime - dragInitialTime);
             coTime = timeline.beatToTime(selectedControl!.event.time);
         }
         if (draggingBeat) {
-            timeline.continueStretchOperation(dragTime - dragInitialTime);
+            timeline.continueTSStretchOperation(dragTime - dragInitialTime);
             coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI!, beatGrid));
         }
         timeline = timeline;

@@ -43,7 +43,10 @@
         lHandleStartTime = lHandleTime;
         rHandleStartTime = rHandleTime;
     }
-    function handleContinueOperation(opstate : BBTimelineApplyOpBeatCallback, applyTime : BBTimelineApplyOpTimeCallback, applyBeat : BBTimelineApplyOpBeatCallback) {
+    function handleContinueOperation(
+        opstate : BBTimelineApplyOpBeatCallback,
+        applyTime : BBTimelineApplyOpTimeCallback,
+        applyBeat : BBTimelineApplyOpBeatCallback) {
         lHandleTime = applyTime(lHandleStartTime).time;
         rHandleTime = applyTime(rHandleStartTime).time;
     }
