@@ -1,18 +1,24 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
-    import { BBTimeLine, type BBSelectionPoint, type BBTimelineApplyOpBeatCallback, type BBTimelineApplyOpTimeCallback, type BBTimelineEvent } from './BBTimeLine';
+    import { BBTimeLine, type BBSelectionPoint, type BBTimelineApplyOpBeatCallback, type BBTimelineApplyOpTimeCallback, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
     import { isScrollSpecial, relPixelsToRel, pixelsToRel, relToRelPixels, relToPixels, preloadIcons, eventIcons, getIcon, getEventIconName } from './UXUtils';
     import type { BBDurationEvent } from './BBTypes';
 
     export let timeline : BBTimeLine;
     export let zoom : number;
     export let center : number;
+    export let co : boolean;
+    export let coTime : number;
     const angleHeight = 320;
     const marginHeight = 60;
     let lane : HTMLElement;
 
     export let showChartEvents : boolean = true;
     export let showLevelEvents : boolean = true;
+
+    export let preserveMode : BBTimelinePreserveMode = "KeepBeats";
+    export let snapToBeat = false;
+    export let beatGrid : number = 4;
 
     /* selectableCache helps us not create brand new Selectables for selectable events that
      * that were already in previous version of the timeline
@@ -37,8 +43,8 @@
         timeline.on("beginOperation", handleBeginOperation);
     }
 
-    let lHandleStartTime = 0;
-    let rHandleStartTime = 0;
+    let lHandleStartTime : number = 0;
+    let rHandleStartTime : number = 0;   
     function handleBeginOperation(opstate : BBTimelineApplyOpBeatCallback) {
         lHandleStartTime = lHandleTime;
         rHandleStartTime = rHandleTime;
@@ -507,6 +513,95 @@
     function timeToHandleX(time : number, timeline : BBTimeLine, zoom : number, center : number) {
         return relToPixels(timeline.timeToRel(time), zoom, center);
     }
+
+    function mouseToTime(mx : number) {
+        return timeline.relToTime(pixelsToRel(mx, zoom, center));
+    }
+
+    let draggingAny = false;
+    let dragInitialTime : number = 0;
+    let draggingLeft = false;
+    
+    
+    function startDrag(event : MouseEvent, left : boolean) {
+        draggingAny = true;
+        dragInitialTime = mouseToTime(event.clientX);
+
+        /* l/rHandleStartTime is set via handleBeginOperation handler */
+        
+        draggingLeft = left;
+        co = true;
+        coTime = (draggingLeft ? lHandleTime : rHandleTime);
+        event.preventDefault();
+        console.log("START DRAG");
+    }
+
+    let stretching = false;
+    function startStretchLeft(event : MouseEvent) {
+        startStretch(event, true);
+    }
+    function startStretchRight(event : MouseEvent) {
+        startStretch(event, false);
+    }
+    function startStretch(event : MouseEvent, left : boolean) {
+        if (isScrollSpecial(event)) {
+            return;
+        }
+        if (selectedSelectables.length == 0) {
+            return;
+        }
+        stretching = true;
+        let leftSnap = left && snapToBeat;
+        let rightSnap = !left && snapToBeat;
+        timeline.beginStaticTransformOperation(
+            lHandleTime, rHandleTime,
+            leftSnap, rightSnap, false, beatGrid,
+            preserveMode, [...selectedSelectables]
+        );
+        startDrag(event, left);
+    }
+
+    export function onDrag(event : MouseEvent) {
+        if (selecting) {
+            onSelectContinue(event);
+            return;
+        }
+
+        if (!draggingAny) {
+            return;
+        }
+
+        let dragTime = mouseToTime(event.clientX);
+        let delta = dragTime - dragInitialTime;
+        coTime = (draggingLeft ? lHandleStartTime : rHandleStartTime) + delta;
+        if (stretching) {
+            let nltime = lHandleStartTime + (draggingLeft ? delta : 0);
+            let nrtime = rHandleStartTime + (draggingLeft ? 0 : delta);
+            timeline.continueStaticTransformOperation(nltime, nrtime);
+        }
+        timeline = timeline;
+        event.preventDefault();
+    }
+
+    export function onUndo() {
+        draggingAny = false;
+        co = false;
+    }
+
+    export function onDragEnd(event : MouseEvent) {
+        if (!draggingAny) {
+            return;
+        }
+
+        if (stretching) {
+            event.preventDefault();
+            stretching = false;
+        }
+
+        timeline = timeline;
+        draggingAny = false;
+        co = false;
+    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div bind:this={lane} class="container"
@@ -533,7 +628,7 @@
         >
             <div class="buttonzone left">
                 <button>Move</button>
-                <button>Stretch</button>
+                <button on:mousedown={startStretchLeft}>Stretch</button>
             </div>
             <div class="buttonzone bottom left">
                 <button>Adjust</button>
@@ -549,7 +644,7 @@
         >
             <div class="buttonzone">
                 <button>Move</button>
-                <button>Stretch</button>
+                <button on:mousedown={startStretchRight} >Stretch</button>
             </div>
             <div class="buttonzone bottom">
                 <button>Adjust</button>

@@ -44,6 +44,7 @@ export interface BBTimelineEventInitialState {
     originalTime : number;
     originalBeat : number;
     originalBPM : number;
+    originalDuration? : number;
 }
 
 
@@ -51,6 +52,9 @@ export interface BBTimelineOperationParams {
     /* Settings */
     pmode : BBTimelinePreserveMode;
     snap? : boolean;
+    snapLeft? : boolean;
+    snapRight? : boolean;
+    preserveLength? : boolean;
     snapGrid? : number;
     mustSave? : boolean;
 
@@ -59,6 +63,9 @@ export interface BBTimelineOperationParams {
     targetControl?: BBTimelineEvent;
     targetTick?: number;
     targetTickOriginalTime?: number;
+    staticSelection? : BBSelectionPoint[];
+    leftTime? : number;
+    rightTime? : number;
 }
 
 export interface BBTimelineOperationState extends  BBTimelineOperationParams {
@@ -494,7 +501,8 @@ export class BBTimeLine  extends EventEmitter  {
                 event,
                 originalBeat: event.event.time,
                 originalTime: this.beatToTime(event.event.time),
-                originalBPM: (event.event as BBSetsBPMEvent).bpm ?? this.beatToBPM(event.event.time)
+                originalBPM: (event.event as BBSetsBPMEvent).bpm ?? this.beatToBPM(event.event.time),
+                originalDuration : (event.event as BBDurationEvent).duration
             }
             initialState.set(event, evis);
         }
@@ -531,25 +539,146 @@ export class BBTimeLine  extends EventEmitter  {
             targetTick,
             targetTickOriginalTime: this.beatToTime(this.tickToBeat(targetTick, snapGrid))
         });
-        /* This is a bit hacky, but modify the initial state with some extra info */
     }
 
     beginTSBPMOperation(targetControl : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                       snap : boolean, snapGrid : number, extraParams : Partial<BBTimelineOperationParams> = {}) {
         this.beginOperation({pmode, snap, snapGrid, targetControl, mustSave:true, ...extraParams});
-        this.alertBeginTimespaceOp();
+        this.alertBeginOp();
     }
 
     beginTSMoveOperation(targetControl : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                        snap : boolean, snapGrid : number, mustSave : boolean) {
         console.log("begin move", pmode);
         this.beginOperation({pmode, snap, snapGrid, targetControl, mustSave});
-        this.alertBeginTimespaceOp();
+        this.alertBeginOp();
     }
 
     beginTSAlterEvents(pmode : BBTimelinePreserveMode = "KeepBeats") {
         this.beginOperation({pmode});
-        this.alertBeginTimespaceOp();
+        this.alertBeginOp();
+    }
+
+    beginStaticTransformOperation(leftTime : number, rightTime: number,
+                                  snapLeft : boolean, snapRight : boolean, 
+                                  preserveLength : boolean,
+                                  snapGrid : number, pmode : BBTimelinePreserveMode,
+                                  staticSelection: BBSelectionPoint[]) {
+        this.beginOperation({
+            staticSelection,
+            leftTime, rightTime,
+            snapLeft, snapRight, snapGrid, preserveLength,
+            /* pmode affects whether the transform is linear in beats or linear in time */
+            pmode
+        });
+        this.alertBeginOp();
+    }
+
+    continueStaticTransformOperation(nltime : number, nrtime: number) {
+        let opstate = this.operationState!;
+        let ltime = opstate.leftTime!;
+        let rtime = opstate.rightTime!;
+
+        let lbeat = this.timeToBeat(ltime);
+        let rbeat = this.timeToBeat(rtime);
+        let nlbeat = this.timeToBeat(nltime);
+        let nrbeat = this.timeToBeat(nrtime);
+
+        let beatspace = opstate.pmode === "KeepBeats";
+
+        /* Perform snapping -- kinda complicated */
+        /* Ensure either left or right handle is snapped to beat.
+         * If preserve the distance between L and R handle if that is enabled.
+         * Preservation distance is based on beats if using beatspace, otherwise time.
+         */
+        let snapGrid = opstate.snapGrid ?? 1;
+        let orig_nltime = nltime;
+        let orig_nrtime = nrtime;
+        let orig_nlbeat = nlbeat;
+        let orig_nrbeat = nrbeat;
+
+        if (opstate.snapLeft) {
+            /* Snap beat and then recompute time */
+            nlbeat = Math.round(nlbeat * snapGrid) / snapGrid;
+            nltime = this.beatToTime(nlbeat);
+
+            /* Preserve length if desired */
+            if (opstate.preserveLength) {
+                if (beatspace) {
+                    nrbeat += nlbeat - orig_nlbeat;
+                    nrtime = this.beatToTime(nrbeat);
+                } else {
+                    nrtime += nltime - orig_nltime;
+                    nrbeat = this.timeToBeat(nrtime);
+                }
+            }
+        }
+
+        if (opstate.snapRight) {
+            /* Snap beat and then recompute time */
+            nrbeat = Math.round(nrbeat * snapGrid) / snapGrid;
+            nrtime = this.beatToTime(nrbeat);
+
+            /* Preserve length if desired */
+            if (opstate.preserveLength) {
+                if (beatspace) {
+                    nlbeat += nrbeat - orig_nrbeat;
+                    nltime = this.beatToTime(nlbeat);
+                } else {
+                    nltime += nrtime - orig_nrtime;
+                    nlbeat = this.timeToBeat(nrtime);
+                }
+            }
+        }
+
+        /* Construct time remappers */
+        let dbeat = rbeat - lbeat;
+        let ndbeat = nrbeat - nlbeat;
+        let dtime = rtime - ltime;
+        let ndtime = nrtime - nltime;
+        let apply = (otime : number, obeat : number) => {
+            let ntime;
+            let nbeat;
+            if (beatspace) {
+                /* Beatwise linear (preserve beat ratios) */
+                nbeat = (obeat - lbeat)/dbeat * ndbeat + nlbeat;
+                ntime = this.beatToTime(nbeat);
+            } else {
+                /* Timewise linear (preserve time ratios) */
+                ntime = (otime - ltime)/dtime * ndtime + nltime;
+                nbeat = this.timeToBeat(ntime);
+            }
+            return {time: ntime, beat: nbeat};
+        }
+        let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
+            return apply(otime, this.timeToBeat(otime, opstate.initialMapping));
+        }
+        let applyBeat : BBTimelineApplyOpTimeCallback = (obeat : number) => {
+            return apply(this.beatToTime(obeat, opstate.initialMapping), obeat);
+        }
+
+        /* perform time remapping on true events */
+        let selection : BBSelectionPoint[] = opstate.staticSelection ?? [];
+        for (let sp of selection) {
+            if (sp.tail) {
+                continue;
+            }
+            let originalState = opstate.initialState.get(sp.event)!;
+            let originalBeat = originalState.originalBeat;
+            let newBeat = applyBeat(originalBeat).beat;
+            sp.event.event.time = newBeat;
+
+            if (sp.other) {
+                let durationEvent : BBDurationEvent = sp.event.event as BBDurationEvent;
+                let tailOriginalBeat = originalBeat + originalState.originalDuration!;
+                let tailNewBeat = selection.includes(sp.other) ? applyBeat(tailOriginalBeat).beat : tailOriginalBeat;
+                let newDuration = tailNewBeat - newBeat;
+                durationEvent.duration = Math.max(newDuration, 0);
+            }
+        }
+
+        /* Allow virtual events to perform remapping */
+        this.emit("continueOperation", this.operationState, applyTime, applyBeat);
     }
 
     continueTSStretchOperation(deltaTime : number) {
@@ -609,7 +738,7 @@ export class BBTimeLine  extends EventEmitter  {
         }
 
         /* Now, update times or beats for all events */
-        this.restitchEvents();
+        this.restitchEventsTS();
     }
 
     continueTSMoveOperation(deltaTime : number) {
@@ -627,11 +756,11 @@ export class BBTimeLine  extends EventEmitter  {
         
         opstate.controlInitialState!.event.event.time = newBeat;
 
-        this.restitchEvents();
+        this.restitchEventsTS();
     }
 
     finishTSAlterEvents() {
-        this.restitchEvents();
+        this.restitchEventsTS();
     }
 
     finishTSStretchOperation(deltaTime : number) {
@@ -655,7 +784,7 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
-    restitchEvents() {
+    restitchEventsTS() {
         let opstate = this.operationState!;
         let nextEvent = opstate.nextControlInitialState;
         /* No time remapping */
@@ -682,6 +811,7 @@ export class BBTimeLine  extends EventEmitter  {
         throw new Error("Impossible state during restitch");
     }
 
+
     alertContinueTSKeepBeats() {
         this.alertContinueTimespaceOp(()=>true);
     }
@@ -692,7 +822,7 @@ export class BBTimeLine  extends EventEmitter  {
         this.alertContinueTimespaceOp((otime, obeat)=>{return otime < afterTime});
     }
 
-    alertBeginTimespaceOp() {
+    alertBeginOp() {
         this.emit("beginOperation", this.operationState);
     }
 

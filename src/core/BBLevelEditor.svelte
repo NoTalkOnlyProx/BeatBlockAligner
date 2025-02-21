@@ -116,6 +116,7 @@
         if (!isDragging) {
             minimap?.onDragEnd(e);
             tsEditor?.onDragEnd(e);
+            eventEditor?.onDragEnd(e);
             eventEditor?.onSelectFinish(e);
         }
         if (isDragging) {
@@ -128,7 +129,7 @@
         if (!isDragging) {
             minimap?.onDrag(e);
             tsEditor?.onDrag(e);
-            eventEditor?.onSelectContinue(e);
+            eventEditor?.onDrag(e);
         }
         if (isDragging)
         {
@@ -146,6 +147,7 @@
         timeline.undo();
         timeline=timeline;
         tsEditor.onUndo();
+        eventEditor.onUndo();
         startBeatControl?.setValue(timeline.getStartBeat());
         offsetControl?.setValue(timeline.getOffset());
         lbControl?.setValue(timeline.getLoadBeat());
@@ -155,6 +157,7 @@
         timeline.redo();
         timeline=timeline;
         tsEditor.onUndo();
+        eventEditor.onUndo();
         startBeatControl?.setValue(timeline.getStartBeat());
         offsetControl?.setValue(timeline.getOffset());
         lbControl?.setValue(timeline.getLoadBeat());
@@ -271,8 +274,8 @@
                 <div>
                     Operation Mode:
                     <select bind:value={preserveMode}>
-                        <option value={"KeepBeats"}>Preserve All Beats (no snap)</option>
-                        <option value={"KeepTimes"}>Preserve All Times (no snap)</option>
+                        <option value={"KeepBeats"}>Preserve All Beats</option>
+                        <option value={"KeepTimes"}>Preserve All Times</option>
                         <option value={"KeepTimesAfter"}>Preserve Times After Next</option>
                     </select>
                 </div>
@@ -320,7 +323,7 @@
             </Pane>
             <Pane>
                 <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                <EventEditor bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
+                <EventEditor bind:beatGrid bind:preserveMode bind:snapToBeat bind:co bind:coTime bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
             </Pane>
         </Splitpanes>
         <Crosshair bind:co bind:coTime bind:zoom bind:center bind:timeline></Crosshair>

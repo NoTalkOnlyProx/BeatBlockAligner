@@ -274,7 +274,7 @@
         return ti/beatGrid + trueFirstBeat;
     }
 
-    function getControlX(control : BBTimelineEvent, timeline : BBTimeLine, zoom : number, center : number, debug : boolean = false) {
+    function getControlX(control : BBTimelineEvent, timeline : BBTimeLine, zoom : number, center : number) {
         let ret = relToPixels(timeline.timeToRel(timeline.beatToTime(control.event.time)), zoom, center);
         return ret;
     }
