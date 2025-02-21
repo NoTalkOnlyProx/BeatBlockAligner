@@ -1,6 +1,6 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
-    import { BBTimeLine, type BBTimelineEvent, type BBTimelineOperationMode } from './BBTimeLine';
+    import { BBTimeLine, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
     import type {BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
     import OptionalNumber from './OptionalNumber.svelte';
     import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from './UXUtils';
@@ -22,8 +22,7 @@
     let choosingEvent = false;
     let tooltipEvents : BBTimelineEvent[];
     
-    export let controlMoveMode : BBTimelineOperationMode = "MoveKeepBeats";
-    export let beatStretchMode : BBTimelineOperationMode = "StretchKeepAllBeats";
+    export let preserveMode : BBTimelinePreserveMode = "KeepBeats";
     export let snapToBeat = false;
     export let beatGrid : number = 4;
 
@@ -139,7 +138,6 @@
         let trueStart = timeline.startTimes?.trueFirstBeat ?? 0;
         trueFirstBeat = Math.floor(Math.min(trueStart, timeline.firstBeat));
         lastBeatIndex = Math.ceil((timeline.lastBeat - trueFirstBeat) * beatGrid);
-        console.log("Tick space computed");
     }
 
     $: beatGrid, resnapTI();
@@ -311,7 +309,7 @@
             return;
         }
         let nbpm = event.detail;
-        timeline.setBPM(selectedControl, nbpm, beatStretchMode, snapToBeat, beatGrid);
+        timeline.setBPM(selectedControl, nbpm, preserveMode, snapToBeat, beatGrid);
         timeline=timeline;
     }
 
@@ -329,7 +327,7 @@
         }
         draggingControl = true;
         coTime = timeline.beatToTime(selectedControl!.event.time);
-        timeline.beginTSMoveOperation(selectedControl!, controlMoveMode, snapToBeat, beatGrid, mustSave);
+        timeline.beginTSMoveOperation(selectedControl!, preserveMode, snapToBeat, beatGrid, mustSave);
         startDrag(event);
         event.preventDefault();
         event.stopPropagation();
@@ -344,7 +342,7 @@
         }
         draggingBeat = true;
         coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI, beatGrid));
-        timeline.beginTSStretchOperation(selectedControl!, beatStretchMode, snapToBeat, beatGrid, selectedTI);
+        timeline.beginTSStretchOperation(selectedControl!, preserveMode, snapToBeat, beatGrid, selectedTI);
         startDrag(event);
     }
     

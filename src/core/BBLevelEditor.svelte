@@ -4,9 +4,8 @@
     import BBMiniMap from './BBMiniMap.svelte';
     import { BBLevelLoader, type BBVariantFiles } from './BBLevelLoader';
     import { onMount, onDestroy } from 'svelte';
-    import { BBTimeLine, type BBTimelineOperationMode } from './BBTimeLine';
+    import { BBTimeLine, type BBTimelinePreserveMode } from './BBTimeLine';
     import VariantWaveforms from './VariantWaveforms.svelte';
-    import TimelineLanes from './TimelineLanes.svelte';
     import TimeSpaceEditor from './TimeSpaceEditor.svelte';
     import EventEditor from './EventEditor.svelte';
     import Crosshair from './Crosshair.svelte';
@@ -29,8 +28,7 @@
     let showSettings = false;
     let hasEnteredSettings = false;
     let beatGrid = 4;
-    let controlMoveMode : BBTimelineOperationMode = "MoveKeepBeats";
-    let beatStretchMode : BBTimelineOperationMode = "StretchKeepAllBeats";
+    let preserveMode : BBTimelinePreserveMode = "KeepBeats";
     let snapToBeat = false;
     let startBeatControl : OptionalNumber;
     let offsetControl : OptionalNumber;
@@ -271,18 +269,11 @@
                     </label>
                 </div>
                 <div>
-                    BPM Setter Move Mode:
-                    <select bind:value={controlMoveMode}>
-                        <option value={"MoveKeepBeats"}>Preserve All Beats (snappable)</option>
-                        <option value={"MoveKeepTimes"}>Preserve All Times (snappable)</option>
-                    </select>
-                </div>
-                <div>
-                    Beat stretch mode:
-                    <select bind:value={beatStretchMode}>
-                        <option value={"StretchKeepAllBeats"}>Preserve All Beats (no snap)</option>
-                        <option value={"StretchKeepAllTimes"}>Preserve All Times (no snap)</option>
-                        <option value={"StretchKeepAfter"}>Preserve All After (snappable)</option>
+                    Operation Mode:
+                    <select bind:value={preserveMode}>
+                        <option value={"KeepBeats"}>Preserve All Beats (no snap)</option>
+                        <option value={"KeepTimes"}>Preserve All Times (no snap)</option>
+                        <option value={"KeepTimesAfter"}>Preserve Times After Next</option>
                     </select>
                 </div>
                 <div class="info">These settings behave strangely! This is accurate to BeatBlock's behavior. If the song's true start beat is greater than zero, the load beat has no effect!</div>
@@ -325,7 +316,7 @@
                 </div>
             </Pane>
             <Pane size={20}>
-                <TimeSpaceEditor bind:snapToBeat bind:controlMoveMode bind:beatStretchMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
+                <TimeSpaceEditor bind:snapToBeat bind:preserveMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
             </Pane>
             <Pane>
                 <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>

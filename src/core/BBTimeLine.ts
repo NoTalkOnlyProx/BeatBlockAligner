@@ -37,7 +37,8 @@ export type TimeBeatPoint = {
     bpm: number;
 }
 
-export type BBTimelineOperationMode = "MoveKeepBeats" | "MoveKeepTimes" | "StretchKeepAllBeats" | "StretchKeepAllTimes" | "StretchKeepAfter" | "AlterEvents";
+export type BBTimelineOperationModeLegacy = "MoveKeepBeats" | "MoveKeepTimes" | "StretchKeepAllBeats" | "StretchKeepAllTimes" | "StretchKeepAfter" | "AlterEvents";
+export type BBTimelinePreserveMode = "KeepBeats" | "KeepTimes" | "KeepTimesAfter";
 export interface BBTimelineEventInitialState {
     event : BBTimelineEvent;
     originalTime : number;
@@ -48,10 +49,11 @@ export interface BBTimelineEventInitialState {
 
 export interface BBTimelineOperationParams {
     /* Settings */
-    mode : BBTimelineOperationMode;
+    pmode : BBTimelinePreserveMode;
     snap? : boolean;
     snapGrid? : number;
     mustSave? : boolean;
+
 
     /* Possible Targets */
     targetControl?: BBTimelineEvent;
@@ -360,9 +362,9 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
-    setBPM(ev : BBTimelineEvent, nbpm : number | null, mode : BBTimelineOperationMode,
+    setBPM(ev : BBTimelineEvent, nbpm : number | null, pmode : BBTimelinePreserveMode,
            snap : boolean,  snapGrid : number) {
-        this.beginTSBPMOperation(ev, mode, snap, snapGrid);
+        this.beginTSBPMOperation(ev, pmode, snap, snapGrid);
         this.finishTSBPMOperation(nbpm);
     }
 
@@ -503,9 +505,9 @@ export class BBTimeLine  extends EventEmitter  {
 
         /* Find nextControlEvent if it exists */
         if (controlEvent) {
-            let nextIndex = this.allEvents.indexOf(controlEvent);
-            if (nextIndex < this.allEvents.length - 2) {
-                nextControlEvent = this.allEvents[nextIndex];
+            let nextIndex = this.timeControlEvents.indexOf(controlEvent);
+            if (nextIndex <= this.timeControlEvents.length - 2) {
+                nextControlEvent = this.timeControlEvents[nextIndex + 1];
             }
         }
 
@@ -523,35 +525,30 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
-    beginTSStretchOperation(event : BBTimelineEvent, mode : BBTimelineOperationMode,
+    beginTSStretchOperation(event : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                           snap : boolean,  snapGrid : number, targetTick : number) {
-        this.beginTSBPMOperation(event, mode, snap, snapGrid, {
+        this.beginTSBPMOperation(event, pmode, snap, snapGrid, {
             targetTick,
             targetTickOriginalTime: this.beatToTime(this.tickToBeat(targetTick, snapGrid))
         });
         /* This is a bit hacky, but modify the initial state with some extra info */
     }
 
-    beginTSBPMOperation(targetControl : BBTimelineEvent, mode : BBTimelineOperationMode,
+    beginTSBPMOperation(targetControl : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                       snap : boolean, snapGrid : number, extraParams : Partial<BBTimelineOperationParams> = {}) {
-        if (!["StretchKeepAllBeats", "StretchKeepAllTimes", "StretchKeepAfter"].includes(mode)) {
-            throw new Error("Invalid BPM/stretch mode");
-        }
-        this.beginOperation({mode, snap, snapGrid, targetControl, mustSave:true, ...extraParams});
+        this.beginOperation({pmode, snap, snapGrid, targetControl, mustSave:true, ...extraParams});
         this.alertBeginTimespaceOp();
     }
 
-    beginTSMoveOperation(targetControl : BBTimelineEvent, mode : BBTimelineOperationMode,
+    beginTSMoveOperation(targetControl : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                        snap : boolean, snapGrid : number, mustSave : boolean) {
-        if (!["MoveKeepBeats","MoveKeepTimes"].includes(mode)) {
-            throw new Error("Invalid move mode");
-        }
-        this.beginOperation({mode, snap, snapGrid, targetControl, mustSave});
+        console.log("begin move", pmode);
+        this.beginOperation({pmode, snap, snapGrid, targetControl, mustSave});
         this.alertBeginTimespaceOp();
     }
 
-    beginTSAlterEvents() {
-        this.beginOperation({mode:"AlterEvents"});
+    beginTSAlterEvents(pmode : BBTimelinePreserveMode = "KeepBeats") {
+        this.beginOperation({pmode});
         this.alertBeginTimespaceOp();
     }
 
@@ -571,14 +568,14 @@ export class BBTimeLine  extends EventEmitter  {
     continueTSBPMOperation(newBPM : number | null) {
         let opstate = this.operationState!;
         let snapGrid = opstate.snapGrid ?? 1;
-        let nextEvent = opstate.initialState.get(this.getControlAfter(opstate.controlInitialState?.event));
+        let nextEvent = opstate.nextControlInitialState;
 
         if (newBPM != null && (newBPM <= 0 || newBPM > 10000)) {
             newBPM = 10000;
         }
 
         /* First, we need to apply snap if applicable */
-        if (opstate.snap && opstate.mode == "StretchKeepAfter" && newBPM != null) {
+        if (opstate.snap && opstate.pmode == "KeepTimesAfter" && newBPM != null) {
             /* The goal is to pick a BPM that preserves the beat offset for the subsequent event. */
             if (nextEvent) {
                 /* In essence, we want a BPM that phase-shifts the beat by 1/snapGrid over the
@@ -611,28 +608,8 @@ export class BBTimeLine  extends EventEmitter  {
             (opstate.controlInitialState!.event.event as BBSetsBPMEvent).bpm = newBPM;
         }
 
-        /* Now, the tricky part. What happens to everything afterwards? */
-
-        /* No time remapping */
-        if (opstate.mode == "StretchKeepAllBeats" ||
-            (opstate.mode == "StretchKeepAfter" && !nextEvent)) {
-            /* In this case, nothing! Just recompute timespace */
-            this.recomputeTimeSpace();
-            this.alertContinueTSKeepBeats();
-            return;
-        }
-        /* Everything is time-remapped */
-        if (opstate.mode == "StretchKeepAllTimes") {
-            this.restitchTimes(opstate.controlInitialState!.originalTime);
-            return;
-        }
-        /* Partial time-remapping */
-        if (opstate.mode == "StretchKeepAfter" && nextEvent) {
-            console.log("Partial remap!!");
-            this.restitchTimes(opstate.controlInitialState!.originalTime, nextEvent.originalTime);
-            return;
-        }
-        throw new Error("Impossible state during BPM op continue");
+        /* Now, update times or beats for all events */
+        this.restitchEvents();
     }
 
     continueTSMoveOperation(deltaTime : number) {
@@ -647,28 +624,14 @@ export class BBTimeLine  extends EventEmitter  {
             newBeat = Math.round(newBeat * snapGrid)/snapGrid;
             newTime = this.beatToTime(newBeat, opstate.entryMapping);
         }
-
-        opstate.controlInitialState!.event.event.time = newBeat;
         
-        if (opstate.mode == "MoveKeepBeats") {
-            /* We ONLY needed to move the target and update timespace in this mode. */
-            /* So, just  recompute the timespace and exit! */
-            this.recomputeTimeSpace();
-            this.alertContinueTSKeepBeats();
-            return;
-        } else if (opstate.mode == "MoveKeepTimes") {
-            /* In this mode, we must compute new beat values for everything except the target,
-             * to preserve original times.
-             */
-            this.restitchTimes(newTime);
-        }
+        opstate.controlInitialState!.event.event.time = newBeat;
+
+        this.restitchEvents();
     }
 
     finishTSAlterEvents() {
-        //TODO: When I redo the concept of "keep beats/keep time" it will be a
-        //configuration parameter that we'll pass here.
-        //For now, though, all event changes are just universally "keep beats"
-        this.alertContinueTSKeepBeats();
+        this.restitchEvents();
     }
 
     finishTSStretchOperation(deltaTime : number) {
@@ -692,13 +655,40 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
+    restitchEvents() {
+        let opstate = this.operationState!;
+        let nextEvent = opstate.nextControlInitialState;
+        /* No time remapping */
+        if (opstate.pmode == "KeepBeats" ||
+            (opstate.pmode == "KeepTimesAfter" && !nextEvent)) {
+            /* In this case, nothing! Just recompute timespace */
+            this.recomputeTimeSpace();
+            this.alertContinueTSKeepBeats();
+            return;
+        }
+        /* Everything is time-remapped */
+        if (opstate.pmode == "KeepTimes") {
+            console.log(opstate);
+            this.restitchTimes();
+            this.alertContinueTSKeepTimesAfterTime();
+            return;
+        }
+        /* Partial time-remapping */
+        if (opstate.pmode == "KeepTimesAfter" && nextEvent) {
+            this.restitchTimes(nextEvent.originalTime);
+            this.alertContinueTSKeepTimesAfterTime(nextEvent.originalTime);
+            return;
+        }
+        throw new Error("Impossible state during restitch");
+    }
+
     alertContinueTSKeepBeats() {
         this.alertContinueTimespaceOp(()=>true);
     }
     alertContinueTSKeepTimes() {
         this.alertContinueTimespaceOp(()=>false);
     }
-    alertContinueTSKeepTimesAfterTime(afterTime : number) {
+    alertContinueTSKeepTimesAfterTime(afterTime : number = -99999) {
         this.alertContinueTimespaceOp((otime, obeat)=>{return otime < afterTime});
     }
 
@@ -732,7 +722,7 @@ export class BBTimeLine  extends EventEmitter  {
     /* Compute new beat values for everything except the target, such that original times are
      * preserved.
      */
-    restitchTimes(newTargetTime : number, ignoreBefore : number = -9999) {
+    restitchTimes(ignoreBefore : number = -9999) {
         let opstate = this.operationState!;
         /* We need to preserve the times of BPM change controls too,
          * so this is going to require a cascade of timespace recomputes.
@@ -745,6 +735,7 @@ export class BBTimeLine  extends EventEmitter  {
          * To do this, we must first sort the time control beats by their final desired time. 
          */
         let fixedtcis : BBTimelineEventInitialState[] = this.timeControlEvents.map(tce => opstate.initialState.get(tce)!);
+        let newTargetTime = this.beatToTime(opstate.targetControl?.event.time ?? 0, opstate.entryMapping);
 
         fixedtcis.sort((a, b) => {
             let atime = (a===opstate.controlInitialState) ? newTargetTime : a.originalTime;
@@ -772,9 +763,6 @@ export class BBTimeLine  extends EventEmitter  {
                 event.event.time = this.timeToBeat(evis.originalTime);
             }
         }
-
-        /* Finally finally, remap virtual events too */
-        this.alertContinueTSKeepTimesAfterTime(ignoreBefore);
     }
 
 
@@ -826,13 +814,6 @@ export class BBTimeLine  extends EventEmitter  {
         }
 
         let tlev = this.registerEvent(clone, toChart, false);
-
-        /* This is kinda bodgey, but I don't want to deal with direct detection pathways for this,
-         * and adding an event is pretty rare.
-         */
-        if (this.timeControlEvents.includes(tlev)) {
-            this.recomputeTimeSpace();
-        }
 
         this.finishTSAlterEvents();
 
