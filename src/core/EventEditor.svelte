@@ -527,7 +527,11 @@
         draggingAny = true;
         dragInitialTime = mouseToTime(event.clientX);
 
-        /* l/rHandleStartTime is set via handleBeginOperation handler */
+        /* l/rHandleStartTime is set via handleBeginOperation handler
+         * for transform ops, but non-transform op (stretch), still needs it set here.
+         */
+        lHandleStartTime = lHandleTime;
+        rHandleStartTime = rHandleTime;
         
         draggingLeft = left;
         co = true;
@@ -582,6 +586,43 @@
         startDrag(event, left);
     }
 
+
+    let adjusting = false;
+    function startAdjustLeft(event : MouseEvent) {
+        startAdjust(event, true);
+    }
+    function startAdjustRight(event : MouseEvent) {
+        startAdjust(event, false);
+    }
+    function startAdjust(event : MouseEvent, left : boolean) {
+        if (isScrollSpecial(event)) {
+            return;
+        }
+        if (selectedSelectables.length == 0) {
+            return;
+        }
+        adjusting = true;
+        startDrag(event, left);
+    }
+
+    function continueAdjust(delta : number) {
+        if (draggingLeft) {
+            lHandleTime = lHandleStartTime + delta;
+            if (snapToBeat) {
+                let snappedBeat = Math.round(timeline.timeToBeat(lHandleTime) * beatGrid)/beatGrid;
+                lHandleTime = timeline.beatToTime(snappedBeat);
+            }
+            coTime = lHandleTime;
+        } else {
+            rHandleTime = rHandleStartTime + delta;
+            if (snapToBeat) {
+                let snappedBeat = Math.round(timeline.timeToBeat(rHandleTime) * beatGrid)/beatGrid;
+                rHandleTime = timeline.beatToTime(snappedBeat);
+            }
+            coTime = rHandleTime;
+        }
+    }
+
     export function onDrag(event : MouseEvent) {
         if (selecting) {
             onSelectContinue(event);
@@ -594,7 +635,10 @@
 
         let dragTime = mouseToTime(event.clientX);
         let delta = dragTime - dragInitialTime;
-        coTime = (draggingLeft ? lHandleStartTime : rHandleStartTime) + delta;
+
+        if (stretching || adjusting) {
+            coTime = (draggingLeft ? lHandleStartTime : rHandleStartTime) + delta;
+        }
         
         if (stretching) {
             let nltime = lHandleStartTime + (draggingLeft ? delta : 0);
@@ -610,6 +654,9 @@
             let nrtime = rHandleStartTime + delta;
             timeline.continueStaticTransformOperation(nltime, nrtime);
         }
+        if (adjusting) {
+            continueAdjust(delta);
+        }
         timeline = timeline;
         event.preventDefault();
     }
@@ -624,10 +671,16 @@
             return;
         }
 
-        if (stretching) {
+        if (stretching || moving) {
             event.preventDefault();
             stretching = false;
+            moving = false;
             timeline.finishStaticTransformOperation();
+        }
+
+        if (adjusting) {
+            event.preventDefault();
+            adjusting = false;
         }
 
         timeline = timeline;
@@ -663,7 +716,7 @@
                 <button on:mousedown={startStretchLeft}>Stretch</button>
             </div>
             <div class="buttonzone bottom left">
-                <button>Adjust</button>
+                <button  on:mousedown={startAdjustRight}>Adjust</button>
                 <button>Quantize</button>
             </div>
             <div class = "line"></div>
@@ -679,7 +732,7 @@
                 <button on:mousedown={startStretchRight} >Stretch</button>
             </div>
             <div class="buttonzone bottom">
-                <button>Adjust</button>
+                <button  on:mousedown={startAdjustRight}>Adjust</button>
                 <button>Quantize</button>
             </div>
             <div class = "line"></div>
