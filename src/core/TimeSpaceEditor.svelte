@@ -4,6 +4,8 @@
     import type {BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
     import OptionalNumber from './OptionalNumber.svelte';
     import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from './UXUtils';
+    import { createEventDispatcher } from 'svelte';
+    const dispatch = createEventDispatcher();
 
     export let timeline : BBTimeLine;
     export let zoom : number;
@@ -30,6 +32,7 @@
         console.log("Selected!");
         selectedControl = event;
         choosingEvent = false;
+        dispatch("interacted");
     }
 
     function deselectControl(e : MouseEvent) {
@@ -38,6 +41,7 @@
         choosingEvent = false;
         selectedTI = null;
         e.stopPropagation();
+        dispatch("interacted");
     }
 
     function deleteControl(e : MouseEvent) {
@@ -51,11 +55,14 @@
         choosingEvent = false;
         selectedTI = null;
         e.stopPropagation();
+        dispatch("interacted");
     }
 
     export function onEscape() {
-        if (choosingEvent) {
-            choosingEvent = false;
+        if (draggingAny) {
+            draggingAny = false;
+            draggingBeat = false;
+            draggingControl = false;
             return true;
         }
         if (selectedTI != null) {
@@ -66,10 +73,15 @@
             selectedControl = null;
             return true;
         }
+        if (choosingEvent) {
+            choosingEvent = false;
+            return true;
+        }
         return false;
     }
 
     function selectTI(ti : number) {
+        dispatch("interacted");
         if (!TISelectable(ti)) {
             return false;
         }
@@ -110,6 +122,7 @@
         dragInitialTime = mouseToTime(event.clientX);
         co = true;
         event.preventDefault();
+        dispatch("interacted");
         console.log("START DRAG");
     }
 
@@ -250,7 +263,6 @@
 
             /* Anything within 30 pixels */
             let threshold = timeline.relToTimeDelta(relPixelsToRel(30, zoom));
-            console.log(threshold);
             tooltipEvents = timeline.getEventsNearTime(timeline.timeControlEvents, tooltipTime, threshold);
             tooltipVisible = tooltipEvents.length > 0;
             return;
@@ -312,6 +324,7 @@
         if (!selectedControl) {
             return;
         }
+        dispatch("interacted");
         if (["play", "setBPM"].includes(selectedControl.event.type)) {
             let nbpm = event.detail;
             timeline.setBPM(selectedControl, nbpm, preserveMode, snapToBeat, beatGrid);
@@ -389,11 +402,13 @@
             event.preventDefault();
             draggingControl = false;
             timeline.finishTSMoveOperation();
+            dispatch("interacted");
         }
         if (draggingBeat) {
             event.preventDefault();
             draggingBeat = false;
             timeline.finishTSStretchOperation();
+            dispatch("interacted");
         }
 
         if (!TIIsValidSelection(selectedTI, selectedControl, beatGrid)) {
@@ -527,7 +542,7 @@
         <div
             class="controlzone"
             on:mousedown={preventNavDrag}
-            style:left={`calc(${getControlX(selectedControl, timeline, zoom, center, true)}px + 6px)`}
+            style:left={`calc(${getControlX(selectedControl, timeline, zoom, center)}px + 6px)`}
         >
             <div class="controlTitle">{getDescription(selectedControl)}</div>
             {#if ["play", "setBPM"].includes(selectedControl.event.type)}
@@ -537,7 +552,9 @@
             {/if}
             <div class="buttonzone">
                 <button class="move" on:mousedown={startDragControl}>Move</button>
-                <button class="del" on:click={deleteControl}>Delete</button>
+                {#if ["play", "setBPM"].includes(selectedControl.event.type)}
+                    <button class="del" on:click={deleteControl}>Delete</button>
+                {/if}
                 {#if selectedControl.event.type === "play"}
                     <button class="dup" on:mousedown={startDragControlSplit}>Split</button>
                 {:else}

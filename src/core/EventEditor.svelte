@@ -3,6 +3,8 @@
     import { BBTimeLine, type BBSelectionPoint, type BBTimelineApplyOpBeatCallback, type BBTimelineApplyOpTimeCallback, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
     import { isScrollSpecial, relPixelsToRel, pixelsToRel, relToRelPixels, relToPixels, preloadIcons, eventIcons, getIcon, getEventIconName } from './UXUtils';
     import type { BBDurationEvent } from './BBTypes';
+    import { createEventDispatcher } from 'svelte';
+    const dispatch = createEventDispatcher();
 
     export let timeline : BBTimeLine;
     export let zoom : number;
@@ -19,6 +21,7 @@
     export let preserveMode : BBTimelinePreserveMode = "KeepBeats";
     export let snapToBeat = false;
     export let beatGrid : number = 4;
+
 
     /* selectableCache helps us not create brand new Selectables for selectable events that
      * that were already in previous version of the timeline
@@ -349,6 +352,20 @@
     }
 
     export function onEscape() {
+        if (draggingAny) {
+            draggingAny = false;
+            moving = false;
+            adjusting = false;
+            stretching = false;
+            return true;
+        }
+
+        if (selectedSelectables.length > 0 || selecting) {
+            selecting = false;
+            selectedSelectables = [];
+            return true;
+        }
+
         return false;
     }
 
@@ -380,6 +397,7 @@
         startSelectionAngle = angle;
         startSelectionTime = time;
         recomputeSelectEnd(event.clientX, event.clientY);
+        dispatch("interacted");
     }
 
     function redrawBox() {
@@ -476,39 +494,42 @@
     let lHandleTime = 0;
     let rHandleTime = 0;
     export function onSelectFinish(event : MouseEvent) {
-        if (selecting) {
-            selecting = false;
-
-            /* Do nothing if the selection wasn't changed */
-            if (selectedSelectables.length === selectionCandidates.length) {
-                let allSame = true;
-                for (let sp of selectedSelectables) {
-                    if (!selectionCandidates.includes(sp)) {
-                        allSame = false;
-                        break;
-                    }
-                }
-                if (allSame) {
-                    return;
-                }
-            }
-
-            /* Selection DID change */
-            selectedSelectables = selectionCandidates;
-
-            /* Therefore, recompute the handles */
-            let lHandleBeat = 99999;
-            let rHandleBeat = -99999;
-
-            for (let sp of selectedSelectables) {
-                let beat = spToBeat(sp);
-                lHandleBeat = Math.min(beat, lHandleBeat);
-                rHandleBeat = Math.max(beat, rHandleBeat);
-            }
-
-            lHandleTime = timeline.beatToTime(lHandleBeat);
-            rHandleTime = timeline.beatToTime(rHandleBeat);
+        if (!selecting) {
+            return;
         }
+        selecting = false;
+
+        dispatch("interacted");
+
+        /* Do nothing if the selection wasn't changed */
+        if (selectedSelectables.length === selectionCandidates.length) {
+            let allSame = true;
+            for (let sp of selectedSelectables) {
+                if (!selectionCandidates.includes(sp)) {
+                    allSame = false;
+                    break;
+                }
+            }
+            if (allSame) {
+                return;
+            }
+        }
+
+        /* Selection DID change */
+        selectedSelectables = selectionCandidates;
+
+        /* Therefore, recompute the handles */
+        let lHandleBeat = 99999;
+        let rHandleBeat = -99999;
+
+        for (let sp of selectedSelectables) {
+            let beat = spToBeat(sp);
+            lHandleBeat = Math.min(beat, lHandleBeat);
+            rHandleBeat = Math.max(beat, rHandleBeat);
+        }
+
+        lHandleTime = timeline.beatToTime(lHandleBeat);
+        rHandleTime = timeline.beatToTime(rHandleBeat);
     }
 
     function preventNavDrag(event : MouseEvent) {
@@ -544,6 +565,7 @@
         co = true;
         coTime = (draggingLeft ? lHandleTime : rHandleTime);
         event.preventDefault();
+        dispatch("interacted");
         console.log("START DRAG");
     }
 

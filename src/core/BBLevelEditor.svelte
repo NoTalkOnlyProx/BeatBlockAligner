@@ -64,15 +64,9 @@
      * We could get around this maybe with tighter math, but my capacity to care is not sufficient.
      */
     $: zoom = zoom > maxzoom ? maxzoom : zoom;
-
     function onKeyDown(event : KeyboardEvent) {
         if (event.key === 'Escape') {
-            if (eventEditor?.onEscape()) {
-                return;
-            }
-            if (tsEditor?.onEscape()) {
-                return;
-            }
+            handleEscape();
             return;
         }
         
@@ -92,11 +86,43 @@
         }
     }
 
+    let tsEscapeFirst = false;
+    function handleEscape() {
+        if (tsEscapeFirst && tsEditor?.onEscape()) {
+            return;
+        }
+        if (eventEditor?.onEscape()) {
+            return;
+        }
+        if (tsEditor?.onEscape()) {
+            return;
+        }
+    }
+
+    function onTimespaceInteraction() {
+        tsEscapeFirst = true;
+    }
+    function onEventEditorInteraction() {
+        tsEscapeFirst = false;
+    }
+
+    /* This lets us detect mouse up if it occurs while outside the window, essentially
+     * Technically, the user could swap the exact button pressed, and we'd not detect this,
+     * but at that point it is beyond the scope of what I am willing to write edge cases for.
+     */
+    function onMouseReenterWindow(e : MouseEvent) {
+        if (e.buttons == 0) {
+            onDragEnd(e);
+        }
+    }
+
     onMount(() => {
+        document.body.addEventListener('mouseenter', onMouseReenterWindow);
         document.addEventListener('keydown', onKeyDown);
 	});
 
     onDestroy(() => {
+        document.body.removeEventListener('mouseenter', onMouseReenterWindow);
         document.removeEventListener('keydown', onKeyDown);
 	});
 
@@ -222,22 +248,16 @@
         e.preventDefault();
         e.stopPropagation();
     }
-    function preventDragProp(event : MouseEvent) {
-        if (event.button != 1) {   
-            event.stopPropagation();
-        }
-    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div class="vflow"
-    on:mousedown={onDragStart}
     on:mouseup={onDragEnd}
     on:mousemove={onDrag}
     on:drop={handleDropPrevent}
     on:dragover={handleDropPrevent}
 >
     <div class="menubar" on:wheel={onMouseWheelPreventDefault}>
-        <div class="menu" on:mousedown={preventDragProp}>
+        <div class="menu">
             <select class="variantselect" bind:value={selectedVariant} on:change={handleVariantChanged}>
                 {#each variants as vname}<option value={vname}>{"variant: " + vname}</option>{/each}
             </select>
@@ -311,7 +331,10 @@
         <div class="topmargin"></div>
         <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
             <Pane size={20}>
-                <div on:drop={handleClickTrackDrop} style="width:100%; height:100%">
+                <div style="width:100%; height:100%"
+                    on:drop={handleClickTrackDrop} 
+                    on:mousedown={onDragStart}
+                >
                     <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                     <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
                         <VariantWaveforms bind:zoom bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
@@ -319,11 +342,26 @@
                 </div>
             </Pane>
             <Pane size={20}>
-                <TimeSpaceEditor bind:snapToBeat bind:preserveMode bind:beatGrid bind:co bind:coTime bind:zoom bind:center bind:this={tsEditor} bind:timeline></TimeSpaceEditor>
+                <div style="width:100%; height:100%"
+                    on:mousedown={onDragStart}
+                >
+                    <TimeSpaceEditor
+                        bind:snapToBeat bind:preserveMode bind:beatGrid
+                        bind:co bind:coTime bind:zoom bind:center
+                        bind:this={tsEditor}
+                        bind:timeline
+                        on:interacted={onTimespaceInteraction}>
+                    </TimeSpaceEditor>
+                </div>
             </Pane>
             <Pane>
                 <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                <EventEditor bind:beatGrid bind:preserveMode bind:snapToBeat bind:co bind:coTime bind:showLevelEvents bind:showChartEvents bind:this={eventEditor} bind:zoom bind:center bind:timeline></EventEditor>
+                <EventEditor
+                    bind:beatGrid bind:preserveMode bind:snapToBeat
+                    bind:co bind:coTime bind:showLevelEvents bind:showChartEvents
+                    bind:this={eventEditor} bind:zoom bind:center bind:timeline
+                    on:interacted={onEventEditorInteraction}
+                    ></EventEditor>
             </Pane>
         </Splitpanes>
         <Crosshair bind:co bind:coTime bind:zoom bind:center bind:timeline></Crosshair>

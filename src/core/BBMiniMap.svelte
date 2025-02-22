@@ -34,9 +34,11 @@
     }
 
     export function onDragEnd(e : MouseEvent) {
-        dragging = false;
-        e.preventDefault();
-        e.stopPropagation();
+        if (dragging) {
+            dragging = false;
+            e.preventDefault();
+            e.stopPropagation();
+        }
     }
 
     function onDragStart(e : MouseEvent) {
