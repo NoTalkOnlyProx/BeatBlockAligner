@@ -37,7 +37,6 @@ export type TimeBeatPoint = {
     bpm: number;
 }
 
-export type BBTimelineOperationModeLegacy = "MoveKeepBeats" | "MoveKeepTimes" | "StretchKeepAllBeats" | "StretchKeepAllTimes" | "StretchKeepAfter" | "AlterEvents";
 export type BBTimelinePreserveMode = "KeepBeats" | "KeepTimes" | "KeepTimesAfter";
 export interface BBTimelineEventInitialState {
     event : BBTimelineEvent;
@@ -654,9 +653,36 @@ export class BBTimeLine  extends EventEmitter  {
         let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
             return apply(otime, this.timeToBeat(otime, opstate.initialMapping));
         }
-        let applyBeat : BBTimelineApplyOpTimeCallback = (obeat : number) => {
+        let applyBeat : BBTimelineApplyOpBeatCallback = (obeat : number) => {
             return apply(this.beatToTime(obeat, opstate.initialMapping), obeat);
         }
+
+        this.remapStaticEvents(applyTime, applyBeat);
+    }
+
+    quantizeStaticEvents(snapGrid : number, staticSelection: BBSelectionPoint[]) {
+        this.beginOperation({pmode:"KeepBeats", staticSelection})
+
+        let opstate = this.operationState!;
+        let apply = (otime : number, obeat : number) => {
+            let nbeat = Math.round(obeat * snapGrid)/snapGrid
+            let ntime = this.beatToTime(nbeat);
+            return {time: ntime, beat: nbeat};
+        }
+        let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
+            return apply(otime, this.timeToBeat(otime, opstate.initialMapping));
+        }
+        let applyBeat : BBTimelineApplyOpBeatCallback = (obeat : number) => {
+            return apply(this.beatToTime(obeat, opstate.initialMapping), obeat);
+        }
+        
+        this.remapStaticEvents(applyTime, applyBeat);
+
+        this.saveUndoPoint("quantize", false);
+    }
+
+    remapStaticEvents(applyTime : BBTimelineApplyOpTimeCallback, applyBeat : BBTimelineApplyOpBeatCallback) { 
+        let opstate = this.operationState!;
 
         /* perform time remapping on true events */
         let selection : BBSelectionPoint[] = opstate.staticSelection ?? [];
@@ -681,6 +707,7 @@ export class BBTimeLine  extends EventEmitter  {
         /* Allow virtual events to perform remapping */
         this.emit("continueOperation", this.operationState, applyTime, applyBeat);
     }
+
 
     continueTSStretchOperation(deltaTime : number) {
         /* We implement this, essentially, as a wrapper for continueBPMOperation */
@@ -851,7 +878,7 @@ export class BBTimeLine  extends EventEmitter  {
         let applyTime : BBTimelineApplyOpTimeCallback = (otime : number) => {
             return apply(otime, this.timeToBeat(otime, opstate.initialMapping));
         }
-        let applyBeat : BBTimelineApplyOpTimeCallback = (obeat : number) => {
+        let applyBeat : BBTimelineApplyOpBeatCallback = (obeat : number) => {
             return apply(this.beatToTime(obeat, opstate.initialMapping), obeat);
         }
         this.emit("continueOperation", this.operationState, applyTime, applyBeat);

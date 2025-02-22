@@ -45,7 +45,11 @@
 
     let lHandleStartTime : number = 0;
     let rHandleStartTime : number = 0;   
+    let ignoreStaticUpdates : boolean = false;
     function handleBeginOperation(opstate : BBTimelineApplyOpBeatCallback) {
+        if (ignoreStaticUpdates) {
+            return;
+        }
         lHandleStartTime = lHandleTime;
         rHandleStartTime = rHandleTime;
     }
@@ -53,6 +57,9 @@
         opstate : BBTimelineApplyOpBeatCallback,
         applyTime : BBTimelineApplyOpTimeCallback,
         applyBeat : BBTimelineApplyOpBeatCallback) {
+        if (ignoreStaticUpdates) {
+            return;
+        }
         lHandleTime = applyTime(lHandleStartTime).time;
         rHandleTime = applyTime(rHandleStartTime).time;
     }
@@ -687,6 +694,30 @@
         draggingAny = false;
         co = false;
     }
+
+    function selectAllBetween(event : MouseEvent) {
+        event.stopPropagation();
+        
+        let minSelectionBeat = timeline.timeToBeat(lHandleTime);
+        let maxSelectionBeat = timeline.timeToBeat(rHandleTime);
+
+        selectedSelectables = visibleSelectables.filter(sp => {
+            let beat = spToBeat(sp);
+
+            if (beat > maxSelectionBeat || beat < minSelectionBeat) {
+                return false;
+            }
+
+            return true;
+        });
+    }
+
+    function quantizeSelected(event : MouseEvent) {
+        event.stopPropagation();
+        ignoreStaticUpdates = true;
+        timeline.quantizeStaticEvents(beatGrid, selectedSelectables);
+        ignoreStaticUpdates = false;
+    }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div bind:this={lane} class="container"
@@ -717,7 +748,7 @@
             </div>
             <div class="buttonzone bottom left">
                 <button  on:mousedown={startAdjustRight}>Adjust</button>
-                <button>Quantize</button>
+                <button on:click={selectAllBetween}>All</button>
             </div>
             <div class = "line"></div>
         </div>
@@ -733,7 +764,7 @@
             </div>
             <div class="buttonzone bottom">
                 <button  on:mousedown={startAdjustRight}>Adjust</button>
-                <button>Quantize</button>
+                <button on:click={quantizeSelected}>Quantize</button>
             </div>
             <div class = "line"></div>
         </div>
