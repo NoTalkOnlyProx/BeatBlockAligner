@@ -81,6 +81,9 @@ export interface BBTimelineOperationState extends  BBTimelineOperationParams {
 
     /* A timespace mapping based on all time control events prior to the target control */
     entryMapping?: TimeBeatPoint[];
+
+    /* Is the applied change significant enough to warrant an undo save? */
+    changeSignificant?: boolean;
 }
 
 
@@ -372,7 +375,8 @@ export class BBTimeLine  extends EventEmitter  {
     setBPM(ev : BBTimelineEvent, nbpm : number | null, pmode : BBTimelinePreserveMode,
            snap : boolean,  snapGrid : number) {
         this.beginTSBPMOperation(ev, pmode, snap, snapGrid);
-        this.finishTSBPMOperation(nbpm);
+        this.continueTSBPMOperation(nbpm)
+        this.finishTSBPMOperation();
     }
 
     timeToBPM(time : number, mapping : TimeBeatPoint[] = this.mapping) {
@@ -484,11 +488,6 @@ export class BBTimeLine  extends EventEmitter  {
         return this.lookup.get(event);
     }
 
-    /*
-    mode : BBTimelineOperationMode, snap : boolean = false, snapGrid : number,
-                   targetEvent : BBTimelineEvent | undefined = undefined, mustSave : boolean, 
-    */
-
     operationState : BBTimelineOperationState | undefined;
     beginOperation(params : BBTimelineOperationParams) {
         /* Make sure we are dealing with up-to-date timespace */
@@ -576,6 +575,9 @@ export class BBTimeLine  extends EventEmitter  {
 
     continueStaticTransformOperation(nltime : number, nrtime: number) {
         let opstate = this.operationState!;
+
+        opstate.changeSignificant = (nltime != opstate.leftTime) || (nrtime != opstate.rightTime);
+
         let ltime = opstate.leftTime!;
         let rtime = opstate.rightTime!;
 
@@ -684,6 +686,7 @@ export class BBTimeLine  extends EventEmitter  {
     continueTSStretchOperation(deltaTime : number) {
         /* We implement this, essentially, as a wrapper for continueBPMOperation */
         let opstate = this.operationState!;
+        opstate.changeSignificant = (deltaTime != 0);
 
         /* use proportional time to calculate new required BPM */
         let originalTimeDelta = opstate.targetTickOriginalTime! - opstate.controlInitialState!.originalTime;
@@ -744,6 +747,8 @@ export class BBTimeLine  extends EventEmitter  {
     continueTSMoveOperation(deltaTime : number) {
         let opstate = this.operationState!;
 
+        opstate.changeSignificant = (deltaTime != 0);
+
         /* First, move the target. This is straightforward in both modes */
         let newTime = opstate.controlInitialState!.originalTime + deltaTime;
         let newBeat = this.timeToBeat(newTime, opstate.entryMapping);
@@ -763,24 +768,28 @@ export class BBTimeLine  extends EventEmitter  {
         this.restitchEventsTS();
     }
 
-    finishTSStretchOperation(deltaTime : number) {
+    finishTSStretchOperation() {
         let opstate = this.operationState!;
-        this.continueTSStretchOperation(deltaTime);
-        if (deltaTime != 0 || opstate.mustSave) {
+        if (opstate.changeSignificant || opstate.mustSave) {
             this.saveUndoPoint("stretch", false);
         }
     }
 
-    finishTSBPMOperation(finalBPM : number | null) {
-        this.continueTSBPMOperation(finalBPM);
+    finishTSBPMOperation() {
         this.saveUndoPoint("setBPM", true);
     }
 
-    finishTSMoveOperation(deltaTime : number) {
+    finishTSMoveOperation() {
         let opstate = this.operationState!;
-        this.continueTSMoveOperation(deltaTime);
-        if (deltaTime != 0 || opstate.mustSave) {
+        if (opstate.changeSignificant || opstate.mustSave) {
             this.saveUndoPoint("moveControl", false);
+        }
+    }
+
+    finishStaticTransformOperation() {
+        let opstate = this.operationState!;
+        if (opstate.changeSignificant || opstate.mustSave) {
+            this.saveUndoPoint("transformStatic", false);
         }
     }
 

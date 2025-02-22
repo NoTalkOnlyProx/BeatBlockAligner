@@ -596,6 +596,7 @@
         if (stretching) {
             event.preventDefault();
             stretching = false;
+            timeline.finishStaticTransformOperation();
         }
 
         timeline = timeline;

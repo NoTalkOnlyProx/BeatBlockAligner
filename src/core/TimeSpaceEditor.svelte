@@ -378,17 +378,16 @@
         if (!draggingAny) {
             return;
         }
-        let dragTime = mouseToTime(event.clientX);
 
         if (draggingControl) {
             event.preventDefault();
             draggingControl = false;
-            timeline.finishTSMoveOperation(dragTime - dragInitialTime);
+            timeline.finishTSMoveOperation();
         }
         if (draggingBeat) {
             event.preventDefault();
             draggingBeat = false;
-            timeline.finishTSStretchOperation(dragTime - dragInitialTime);
+            timeline.finishTSStretchOperation();
         }
 
         if (!TIIsValidSelection(selectedTI, selectedControl, beatGrid)) {
