@@ -132,12 +132,16 @@
 	});
 
     $: timeline, beatGrid, computeTickSpace();
-    let trueFirstBeat = 0;
-    let lastBeatIndex = 0;
+    let zeroBeat = 0;
+    let rightmostTick = 0;
+    let leftmostTick = 0;
     function computeTickSpace() {
         let trueStart = timeline.startTimes?.trueFirstBeat ?? 0;
-        trueFirstBeat = Math.floor(Math.min(trueStart, timeline.firstBeat));
-        lastBeatIndex = Math.ceil((timeline.lastBeat - trueFirstBeat) * beatGrid);
+        zeroBeat = Math.floor(Math.min(trueStart, timeline.firstBeat));
+        let leftmostBeat = Math.floor(Math.min(zeroBeat, timeline.latestFirstBeat));
+        let rightmostBeat = Math.ceil(Math.max(timeline.lastBeat, timeline.latestLastBeat));
+        rightmostTick = Math.ceil((rightmostBeat - zeroBeat) * beatGrid);
+        leftmostTick = Math.floor((leftmostBeat - zeroBeat) * beatGrid);
     }
 
     $: beatGrid, resnapTI();
@@ -164,7 +168,7 @@
 
     function renderBeatTicks(ctx : CanvasRenderingContext2D) {
         let nearTI = beatToTI(timeline.timeToBeat(mouseToTime(mouseX)));
-        for (let ti = 0; ti <= lastBeatIndex; ti++) {
+        for (let ti = leftmostTick; ti <= rightmostTick; ti++) {
             let tickX = getTickX(ti, timeline, zoom, center);
             renderTick(ctx, tickX, {
                 color:"#ACACAC",
@@ -267,11 +271,11 @@
     }
 
     function beatToTI(beat : number) {
-        return Math.round((beat - trueFirstBeat) * beatGrid)
+        return Math.round((beat - zeroBeat) * beatGrid)
     }
 
     function tiToBeat(ti : number) {
-        return ti/beatGrid + trueFirstBeat;
+        return ti/beatGrid + zeroBeat;
     }
 
     function getControlX(control : BBTimelineEvent, timeline : BBTimeLine, zoom : number, center : number) {
@@ -308,9 +312,11 @@
         if (!selectedControl) {
             return;
         }
-        let nbpm = event.detail;
-        timeline.setBPM(selectedControl, nbpm, preserveMode, snapToBeat, beatGrid);
-        timeline=timeline;
+        if (["play", "setBPM"].includes(selectedControl.event.type)) {
+            let nbpm = event.detail;
+            timeline.setBPM(selectedControl, nbpm, preserveMode, snapToBeat, beatGrid);
+            timeline=timeline;
+        }
     }
 
     let draggingAny = false;
@@ -524,9 +530,11 @@
             style:left={`calc(${getControlX(selectedControl, timeline, zoom, center, true)}px + 6px)`}
         >
             <div class="controlTitle">{getDescription(selectedControl)}</div>
+            {#if ["play", "setBPM"].includes(selectedControl.event.type)}
+            <OptionalNumber value={getControlBPM(selectedControl)} on:change={handleSetBPM}>BPM</OptionalNumber>
             <div class="bpmcont">
-                <OptionalNumber value={getControlBPM(selectedControl)} on:change={handleSetBPM}>BPM</OptionalNumber>
-            </div>
+                </div>
+            {/if}
             <div class="buttonzone">
                 <button class="move" on:mousedown={startDragControl}>Move</button>
                 <button class="del" on:click={deleteControl}>Delete</button>

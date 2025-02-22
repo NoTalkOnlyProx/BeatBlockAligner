@@ -17,10 +17,9 @@ export interface BBTimelineEvent {
 
 
 /* ChangeOffset appears to be dev only, and I am happy to leave it as such for now. Sorry! */
-const timeControlTypes = ["play", "setBPM"];
+const timeControlTypes = ["play", "setBPM", "showResults"];
 
-/* For now, I am assuming that tags cannot contain setBPM events. */
-const markerTypes = ["tag", "bookmark", "showResults"];
+const markerTypes = ["bookmark"];
 
 function sortEvents(events : BBEvent[]) {
     events.sort((a, b) => (a?.time ?? 0) - (b?.time ?? 0));
@@ -129,6 +128,14 @@ export class BBTimeLine  extends EventEmitter  {
     canUndo = false;
     canRedo = false;
 
+    startTimes : BBStartData | undefined = undefined;
+
+    /* Dynamically updated version of firstBeat/lastBeat.
+     * Not used for timespace establishment
+     */
+    latestLastBeat : number = 0;
+    latestFirstBeat : number = 0;
+
     /* These are never updated after first load,
      * they just establish the baseline time transform, but users are free to move things well
      * outside this range.
@@ -137,7 +144,6 @@ export class BBTimeLine  extends EventEmitter  {
     lastBeat : number = 0;
     firstTime : number = 0;
     lastTime : number = 0;
-    startTimes : BBStartData | undefined = undefined;
 
     constructor(variant : BBVariantFiles) {
         super();
@@ -247,6 +253,12 @@ export class BBTimeLine  extends EventEmitter  {
         let startData = this.computeStartData();
         let currentBPM = 100;
         let controls : BBTimelineEvent[] = tces ?? this.timeControlEvents;
+
+        let newLatestFirstBeat = startData.trueFirstBeat;
+        let newLatestLastBeat = startData.trueFirstBeat;
+
+        /* If we are not overriding the events array used, we are modifying the class state */
+        let modifyInPlace = !tces;
         
         /* Sort events into those that are preloaded, and those that are not */
         let preloadEvents : BBTimelineEvent[] = [];
@@ -262,11 +274,16 @@ export class BBTimeLine  extends EventEmitter  {
             }
         }
 
-        /* If we are not overriding the events array used, we are modifying the class state,
-         * apply sorting.
-         */
-        if (tces) {
+        if (modifyInPlace) {
             sortTimelineEvents(this.timeControlEvents);
+            for (let event of controls) {
+                newLatestFirstBeat = Math.min(newLatestFirstBeat, event.realbeat ?? 0);
+                newLatestFirstBeat = Math.min(newLatestFirstBeat, event.event.time);
+                newLatestLastBeat = Math.max(newLatestLastBeat, event.realbeat ?? 0);
+                newLatestLastBeat = Math.max(newLatestLastBeat, event.event.time);
+            }
+            this.latestLastBeat = newLatestLastBeat;
+            this.latestFirstBeat = newLatestFirstBeat;
         }
 
         sortTimelineEvents(preloadEvents);
@@ -822,11 +839,14 @@ export class BBTimeLine  extends EventEmitter  {
     restitchEventsTS() {
         let opstate = this.operationState!;
         let nextEvent = opstate.nextControlInitialState;
+
+        
+        this.recomputeTimeSpace();
+
         /* No time remapping */
         if (opstate.pmode == "KeepBeats" ||
             (opstate.pmode == "KeepTimesAfter" && !nextEvent)) {
             /* In this case, nothing! Just recompute timespace */
-            this.recomputeTimeSpace();
             this.alertContinueTSKeepBeats();
             return;
         }
@@ -981,6 +1001,8 @@ export class BBTimeLine  extends EventEmitter  {
         let tlev = this.registerEvent(clone, toChart, false);
 
         this.finishTSAlterEvents();
+
+        console.log("TCEV", this.timeControlEvents);
 
         if (saveUndo) {
             this.saveUndoPoint("addEvent", false);
