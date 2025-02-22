@@ -551,11 +551,32 @@
             return;
         }
         stretching = true;
-        let leftSnap = left && snapToBeat;
-        let rightSnap = !left && snapToBeat;
         timeline.beginStaticTransformOperation(
             lHandleTime, rHandleTime,
-            leftSnap, rightSnap, false, beatGrid,
+            left, snapToBeat, false, beatGrid,
+            preserveMode, [...selectedSelectables]
+        );
+        startDrag(event, left);
+    }
+
+    let moving = false;
+    function startMoveLeft(event : MouseEvent) {
+        startMove(event, true);
+    }
+    function startMoveRight(event : MouseEvent) {
+        startMove(event, false);
+    }
+    function startMove(event : MouseEvent, left : boolean) {
+        if (isScrollSpecial(event)) {
+            return;
+        }
+        if (selectedSelectables.length == 0) {
+            return;
+        }
+        moving = true;
+        timeline.beginStaticTransformOperation(
+            lHandleTime, rHandleTime,
+            left, snapToBeat, true, beatGrid,
             preserveMode, [...selectedSelectables]
         );
         startDrag(event, left);
@@ -574,9 +595,19 @@
         let dragTime = mouseToTime(event.clientX);
         let delta = dragTime - dragInitialTime;
         coTime = (draggingLeft ? lHandleStartTime : rHandleStartTime) + delta;
+        
         if (stretching) {
             let nltime = lHandleStartTime + (draggingLeft ? delta : 0);
             let nrtime = rHandleStartTime + (draggingLeft ? 0 : delta);
+            timeline.continueStaticTransformOperation(nltime, nrtime);
+        }
+        if (moving) {
+            /* When performing move, we set the `preserve length` option,
+             * so continueStaticTransformOperation will automatically disregard
+             * one of these in order to preserve either time-linear or beat-linear length!
+             */
+            let nltime = lHandleStartTime + delta;
+            let nrtime = rHandleStartTime + delta;
             timeline.continueStaticTransformOperation(nltime, nrtime);
         }
         timeline = timeline;
@@ -628,7 +659,7 @@
             style:left={timeToHandleX(lHandleTime, timeline, zoom, center) + "px"}
         >
             <div class="buttonzone left">
-                <button>Move</button>
+                <button on:mousedown={startMoveLeft}>Move</button>
                 <button on:mousedown={startStretchLeft}>Stretch</button>
             </div>
             <div class="buttonzone bottom left">
@@ -644,7 +675,7 @@
             style:left={timeToHandleX(rHandleTime, timeline, zoom, center) + "px"}
         >
             <div class="buttonzone">
-                <button>Move</button>
+                <button on:mousedown={startMoveRight}>Move</button>
                 <button on:mousedown={startStretchRight} >Stretch</button>
             </div>
             <div class="buttonzone bottom">

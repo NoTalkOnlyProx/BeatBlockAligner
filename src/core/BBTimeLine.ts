@@ -52,8 +52,7 @@ export interface BBTimelineOperationParams {
     /* Settings */
     pmode : BBTimelinePreserveMode;
     snap? : boolean;
-    snapLeft? : boolean;
-    snapRight? : boolean;
+    leftDominant? : boolean;
     preserveLength? : boolean;
     snapGrid? : number;
     mustSave? : boolean;
@@ -559,14 +558,14 @@ export class BBTimeLine  extends EventEmitter  {
     }
 
     beginStaticTransformOperation(leftTime : number, rightTime: number,
-                                  snapLeft : boolean, snapRight : boolean, 
+                                  leftDominant : boolean, snap : boolean, 
                                   preserveLength : boolean,
                                   snapGrid : number, pmode : BBTimelinePreserveMode,
                                   staticSelection: BBSelectionPoint[]) {
         this.beginOperation({
             staticSelection,
             leftTime, rightTime,
-            snapLeft, snapRight, snapGrid, preserveLength,
+            leftDominant, snap, snapGrid, preserveLength,
             /* pmode affects whether the transform is linear in beats or linear in time */
             pmode
         });
@@ -594,41 +593,41 @@ export class BBTimeLine  extends EventEmitter  {
          * Preservation distance is based on beats if using beatspace, otherwise time.
          */
         let snapGrid = opstate.snapGrid ?? 1;
-        let orig_nltime = nltime;
-        let orig_nrtime = nrtime;
-        let orig_nlbeat = nlbeat;
-        let orig_nrbeat = nrbeat;
 
-        if (opstate.snapLeft) {
-            /* Snap beat and then recompute time */
-            nlbeat = Math.round(nlbeat * snapGrid) / snapGrid;
-            nltime = this.beatToTime(nlbeat);
+        console.log(opstate.leftDominant, opstate.preserveLength);
 
+        if (opstate.leftDominant) {
+            if (opstate.snap) {
+                /* Snap beat and then recompute time */
+                nlbeat = Math.round(nlbeat * snapGrid) / snapGrid;
+                nltime = this.beatToTime(nlbeat);
+            }
+            
             /* Preserve length if desired */
             if (opstate.preserveLength) {
                 if (beatspace) {
-                    nrbeat += nlbeat - orig_nlbeat;
+                    nrbeat = nlbeat + rbeat - lbeat;
                     nrtime = this.beatToTime(nrbeat);
                 } else {
-                    nrtime += nltime - orig_nltime;
+                    nrtime = nltime + rtime - ltime;
                     nrbeat = this.timeToBeat(nrtime);
                 }
             }
-        }
-
-        if (opstate.snapRight) {
-            /* Snap beat and then recompute time */
-            nrbeat = Math.round(nrbeat * snapGrid) / snapGrid;
-            nrtime = this.beatToTime(nrbeat);
+        } else {
+            if (opstate.snap) {
+                /* Snap beat and then recompute time */
+                nrbeat = Math.round(nrbeat * snapGrid) / snapGrid;
+                nrtime = this.beatToTime(nrbeat);
+            }
 
             /* Preserve length if desired */
             if (opstate.preserveLength) {
                 if (beatspace) {
-                    nlbeat += nrbeat - orig_nrbeat;
+                    nlbeat = nrbeat + lbeat - rbeat;
                     nltime = this.beatToTime(nlbeat);
                 } else {
-                    nltime += nrtime - orig_nrtime;
-                    nlbeat = this.timeToBeat(nrtime);
+                    nltime = nrtime + ltime - rtime;
+                    nlbeat = this.timeToBeat(nltime);
                 }
             }
         }
