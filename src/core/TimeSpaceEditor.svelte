@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
-    import type {BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
+    import type {BBPlayEvent, BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
     import OptionalNumber from './OptionalNumber.svelte';
     import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from './UXUtils';
     import { createEventDispatcher } from 'svelte';
@@ -316,8 +316,13 @@
         return `${type}: ${bpmtext}(ang: ${event.event.angle?.toFixed(1)})`;
     }
 
-    function getControlBPM(selectedControl : BBTimelineEvent) {
+    function getControlBPM(selectedControl : BBTimelineEvent, timeline : BBTimeLine) {
+        console.log("gcbpm");
         return (selectedControl?.event as BBSetsBPMEvent)?.bpm ?? null;
+    }
+
+    function getControlOffset(selectedControl : BBTimelineEvent, timeline : BBTimeLine) {
+        return (selectedControl?.event as BBPlayEvent)?.offset ?? null;
     }
 
     function handleSetBPM(event : CustomEvent) {
@@ -327,7 +332,19 @@
         dispatch("interacted");
         if (["play", "setBPM"].includes(selectedControl.event.type)) {
             let nbpm = event.detail;
-            timeline.setBPM(selectedControl, nbpm, preserveMode, snapToBeat, beatGrid);
+            timeline.setEventBPM(selectedControl, nbpm, preserveMode, snapToBeat, beatGrid);
+            timeline=timeline;
+        }
+    }
+
+    function handleSetOffset(event : CustomEvent) {
+        if (!selectedControl) {
+            return;
+        }
+        dispatch("interacted");
+        if (selectedControl.event.type == "play") {
+            let noffset = event.detail;
+            timeline.setEventOffset(selectedControl, noffset);
             timeline=timeline;
         }
     }
@@ -546,19 +563,24 @@
         >
             <div class="controlTitle">{getDescription(selectedControl)}</div>
             {#if ["play", "setBPM"].includes(selectedControl.event.type)}
-            <OptionalNumber value={getControlBPM(selectedControl)} on:change={handleSetBPM}>BPM</OptionalNumber>
-            <div class="bpmcont">
+                <div class="paramcont">
+                    <OptionalNumber value={getControlBPM(selectedControl, timeline)} on:change={handleSetBPM}>BPM</OptionalNumber>
+                </div>
+            {/if}
+            {#if selectedControl.event.type === "play"}
+                <div class="paramcont">
+                    <OptionalNumber value={getControlOffset(selectedControl, timeline)} on:change={handleSetOffset}>offset (s)</OptionalNumber>
                 </div>
             {/if}
             <div class="buttonzone">
                 <button class="move" on:mousedown={startDragControl}>Move</button>
                 {#if ["play", "setBPM"].includes(selectedControl.event.type)}
                     <button class="del" on:click={deleteControl}>Delete</button>
-                {/if}
-                {#if selectedControl.event.type === "play"}
-                    <button class="dup" on:mousedown={startDragControlSplit}>Split</button>
-                {:else}
-                    <button class="dup"  on:mousedown={startDragControlDup}>Dup</button>
+                    {#if selectedControl.event.type === "play"}
+                        <button class="dup" on:mousedown={startDragControlSplit}>Split</button>
+                    {:else}
+                        <button class="dup"  on:mousedown={startDragControlDup}>Dup</button>
+                    {/if}
                 {/if}
                 <button class="desel" on:click={deselectControl}>Deselect</button>
             </div>
@@ -589,6 +611,19 @@
 </div>
 <style>
     @import "../global.css";
+
+
+    .paramcont {
+        padding: 3px;
+        display:flex;
+        background-color: var(--tooltip-color);
+    }
+
+    :global(.bpmcont input) {
+        background-color: var(--main-input-bg);
+        color : var(--main-text-color);
+    }
+
     .tscontainer {
         overflow:hidden;
         height: 100%;
@@ -623,17 +658,6 @@
         flex-direction: column;
         min-width:0px;
         background-color: var(--tooltip-color);
-    }
-
-    .bpmcont {
-        padding: 3px;
-        display:flex;
-        background-color: var(--tooltip-color);
-    }
-
-    :global(.bpmcont input) {
-        background-color: var(--main-input-bg);
-        color : var(--main-text-color);
     }
 
     .buttonzone button {

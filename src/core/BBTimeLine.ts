@@ -1,5 +1,5 @@
 import type { BBVariantFiles } from "./BBLevelLoader";
-import type { BBDurationEvent, BBEvent, BBSetsBPMEvent } from "./BBTypes";
+import type { BBDurationEvent, BBEvent, BBPlayEvent, BBSetsBPMEvent } from "./BBTypes";
 import {EventEmitter} from 'eventemitter3';
 
 /* For whatever reason, no types created for this. */
@@ -387,11 +387,26 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
-    setBPM(ev : BBTimelineEvent, nbpm : number | null, pmode : BBTimelinePreserveMode,
+    setEventBPM(ev : BBTimelineEvent, nbpm : number | null, pmode : BBTimelinePreserveMode,
            snap : boolean,  snapGrid : number) {
         this.beginTSBPMOperation(ev, pmode, snap, snapGrid);
         this.continueTSBPMOperation(nbpm, snap)
         this.finishTSBPMOperation();
+    }
+
+
+    /* I am not bothering to implement this as a true operation, since it cannot affect
+     * anything but the targeted event
+     */
+    setEventOffset(ev : BBTimelineEvent, nofs : number | null) {
+        if (ev.event.type === "play") {
+            if (nofs == null) {
+                delete (ev.event as BBPlayEvent).offset;
+            } else {
+                (ev.event as BBPlayEvent).offset = nofs;
+            }    
+            this.saveUndoPoint("setOffset", true);
+        }
     }
 
     timeToBPM(time : number, mapping : TimeBeatPoint[] = this.mapping) {

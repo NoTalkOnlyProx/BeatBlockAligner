@@ -1,18 +1,21 @@
 <script lang="ts">
 import { createEventDispatcher } from 'svelte';
 const dispatch = createEventDispatcher();
-export let value : number | null = 0;
-let internalValue = 0;
+export let value : null | number | string = "0";
+let internalValue : string = "0";
 let checked = false;
 
-setValue(value);
+$: setValue(value);
 
 function onChange() {
-    value = checked ? internalValue : null;
+    value = checked ? parseFloat(internalValue) : null;
     dispatch("change", value);
 }
 
-export function setValue(nValue : (number | null)) {
+export function setValue(nValue : (number | string | null)) {
+    if (nValue != null) {
+        nValue = parseFloat(nValue + "").toFixed(2).replace(".00","");
+    }
     if (nValue === null) {
         checked = false;
     } else {
