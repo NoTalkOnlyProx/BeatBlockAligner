@@ -161,8 +161,8 @@
     on:dragleave={handleDragLeave}
     bind:this={container} class="waveform" style={$$props.style} style:left={start + "px"} style:height={"100px"} style:width={length + "px"} >
     <canvas class="waverender" bind:this={cv} style:background-color={current_bgcol}>
-
     </canvas>
+    <slot/>
 </div>
 <style>
     .waverender {

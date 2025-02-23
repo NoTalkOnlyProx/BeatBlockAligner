@@ -54,5 +54,5 @@ export async function readFile(entry : FileSystemFileEntry, data:boolean=false) 
 export async function loadAudioFile(entry: FileSystemFileEntry) : Promise<LODAudioData> {
     let soundDataRaw = await readFile(entry as FileSystemFileEntry, true);
     let soundData = await audioCtx.decodeAudioData(soundDataRaw as ArrayBuffer);
-    return generateAudioLODs(soundData);
+    return generateAudioLODs(soundData, entry.name);
 }

@@ -670,31 +670,6 @@
     .controlzone > * {
         opacity: 1.0;
     }
-
-    .move {
-        background-color: #28e6cb;
-    }
-    .move:hover {
-        background-color: #c8fff7;
-    }
-    .del {
-        background-color: #f00;
-    }
-    .del:hover {
-        background-color: rgb(255, 114, 114);
-    }
-    .dup {
-        background-color: #ff00a7;
-    }
-    .dup:hover {
-        background-color: #ff94d9;
-    }
-    .desel {
-        background-color: #ffae00;
-    }
-    .desel:hover {
-        background-color: #ffd986;
-    }
     .controlTitle {
         padding:3px;
         background-color: var(--tooltip-color-bright);

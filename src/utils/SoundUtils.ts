@@ -1,10 +1,11 @@
 export interface LODAudioData {
+    filename: string;
     duration : number;
     channelLODs: Float32Array[][];
     peaks : number[];
 }
 
-export function generateAudioLODs(soundData : AudioBuffer) : LODAudioData {
+export function generateAudioLODs(soundData : AudioBuffer, filename : string) : LODAudioData {
     let channelLODs : Float32Array[][] = [];
     let peaks : number[] = [];
     for (let ch = 0; ch < soundData.numberOfChannels; ch++) {
@@ -39,6 +40,7 @@ export function generateAudioLODs(soundData : AudioBuffer) : LODAudioData {
     return {
         duration: soundData.duration,
         channelLODs,
-        peaks
+        peaks,
+        filename
     }
 }

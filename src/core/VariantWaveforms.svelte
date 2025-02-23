@@ -62,6 +62,13 @@
         timeline=timeline;
     }
 
+    
+    function deleteClickTrack(tle : BBTimelineEvent, i : number = 0) {
+        let sound = soundInfo(timeline, tle);
+        sound.clickTracks.splice(i, 1);
+        timeline=timeline;
+    }
+
     export async function handleClickTrackDrop(e : DragEvent) {
         let playEvents = timeline.timeControlEvents.filter(tle => tle.event.type === "play");
         if (playEvents.length === 1) {
@@ -69,6 +76,7 @@
             await addFilesToPlay(files, playEvents[0]);
         }
     }
+
 
     //timeline.variant.sounds
 </script>
@@ -81,15 +89,50 @@
                 length={mapLength(timeline, tle, zoom)}
                 data={soundInfo(timeline, tle).soundData}
                 shown={!(tle.skipped)}
-            ></Waveform>
+            >
+                <div class="wavetitle">{soundInfo(timeline, tle).soundFileName}</div>
+            </Waveform>
             {#if soundInfo(timeline, tle).clickTracks.length > 0}
                 {#each soundInfo(timeline, tle).clickTracks as ct, i}
                     <Waveform allowdrop on:filesDragged={(e)=>onFilesDragged(e, tle, i+1)}
                         start={mapStart(timeline, tle, zoom)}
                         length={mapRelativeLength(timeline, tle, ct, zoom)}
-                        data={ct}></Waveform>
+                        data={ct}>
+                        <div class="wavetitle">
+                            {ct.filename}
+                            <button
+                                class="wavebutton del"
+                                on:click={deleteClickTrack(tle, i)}
+                            >
+                                Delete
+                            </button>
+                        </div>
+                    </Waveform>
                 {/each}
             {/if}
         {/if}
     {/each}
 </TimelineLanes>
+
+<style>
+    .wavetitle {
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        background-color: rgba(0, 0, 0, 0.425);
+        display: flex;
+        gap: 10px;
+    }
+
+    .wavebutton {
+        border: none;
+        display: block;
+        color: black;
+        pointer-events: auto;
+    }
+    .wavebutton:hover {
+        border: none;
+        display: block;
+        pointer-events: auto;
+    }
+</style>
