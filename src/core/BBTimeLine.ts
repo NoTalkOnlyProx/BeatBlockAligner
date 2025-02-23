@@ -965,6 +965,15 @@ export class BBTimeLine  extends EventEmitter  {
             } else {
                 event.event.time = this.timeToBeat(evis.originalTime);
             }
+            if ((evis.event.event as BBDurationEvent).duration) {
+                let originalEndTime = this.beatToTime(evis.originalBeat + evis.originalDuration!, opstate.initialMapping);
+                if (originalEndTime < ignoreBefore) {
+                    (evis.event.event as BBDurationEvent).duration = evis.originalDuration!;
+                } else {
+                    let newEndBeat = this.timeToBeat(originalEndTime);
+                    (evis.event.event as BBDurationEvent).duration = newEndBeat - event.event.time;
+                }
+            }
         }
     }
 
