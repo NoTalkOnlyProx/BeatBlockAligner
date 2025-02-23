@@ -406,6 +406,7 @@
                         <VariantWaveforms bind:zoom bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
                     </TimelineZone>
                 </div>
+                <div class="lanetitle">waveforms</div>
             </Pane>
             <Pane size={20}>
                 <div style="width:100%; height:100%"
@@ -418,6 +419,7 @@
                         bind:timeline
                         on:interacted={onTimespaceInteraction}>
                     </TimeSpaceEditor>
+                    <div class="lanetitle">rhythm editor</div>
                 </div>
             </Pane>
             <Pane>
@@ -427,7 +429,9 @@
                     bind:co bind:coTime bind:showLevelEvents bind:showChartEvents
                     bind:this={eventEditor} bind:zoom bind:center bind:timeline
                     on:interacted={onEventEditorInteraction}
-                    ></EventEditor>
+                    >
+                </EventEditor>
+                <div class="lanetitle">event editor</div>
             </Pane>
         </Splitpanes>
         <Crosshair bind:co bind:coTime bind:zoom bind:center bind:timeline></Crosshair>
@@ -578,5 +582,14 @@
         display: flex;
         flex-direction: column;
         justify-content: space-around;
+    }
+    .lanetitle {
+        pointer-events: none;
+        z-index: 200;
+        background-color: rgba(0, 0, 0, 0.253);
+        position: absolute;
+        top: 0px;
+        left: 0px;
+        padding-left : 3px;
     }
 </style>
