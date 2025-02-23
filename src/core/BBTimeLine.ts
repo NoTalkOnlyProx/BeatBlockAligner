@@ -390,7 +390,7 @@ export class BBTimeLine  extends EventEmitter  {
     setBPM(ev : BBTimelineEvent, nbpm : number | null, pmode : BBTimelinePreserveMode,
            snap : boolean,  snapGrid : number) {
         this.beginTSBPMOperation(ev, pmode, snap, snapGrid);
-        this.continueTSBPMOperation(nbpm)
+        this.continueTSBPMOperation(nbpm, snap)
         this.finishTSBPMOperation();
     }
 
@@ -588,8 +588,9 @@ export class BBTimeLine  extends EventEmitter  {
         this.alertBeginOp();
     }
 
-    continueStaticTransformOperation(nltime : number, nrtime: number) {
+    continueStaticTransformOperation(nltime : number, nrtime: number, currentlySnapping : boolean) {
         let opstate = this.operationState!;
+        opstate.snap = currentlySnapping;
 
         opstate.changeSignificant = (nltime != opstate.leftTime) || (nrtime != opstate.rightTime);
 
@@ -726,7 +727,7 @@ export class BBTimeLine  extends EventEmitter  {
     }
 
 
-    continueTSStretchOperation(deltaTime : number) {
+    continueTSStretchOperation(deltaTime : number, currentlySnapping : boolean) {
         /* We implement this, essentially, as a wrapper for continueBPMOperation */
         let opstate = this.operationState!;
         opstate.changeSignificant = (deltaTime != 0);
@@ -737,11 +738,12 @@ export class BBTimeLine  extends EventEmitter  {
         let newTimeDelta = newBeatTime - opstate.controlInitialState!.originalTime;
         let newBPM = originalTimeDelta/newTimeDelta * opstate.controlInitialState!.originalBPM!;
 
-        this.continueTSBPMOperation(newBPM);
+        this.continueTSBPMOperation(newBPM, currentlySnapping);
     }
 
-    continueTSBPMOperation(newBPM : number | null) {
+    continueTSBPMOperation(newBPM : number | null, currentlySnapping : boolean) {
         let opstate = this.operationState!;
+        opstate.snap = currentlySnapping;
         let snapGrid = opstate.snapGrid ?? 1;
         let nextEvent = opstate.nextControlInitialState;
 
@@ -787,8 +789,9 @@ export class BBTimeLine  extends EventEmitter  {
         this.restitchEventsTS();
     }
 
-    continueTSMoveOperation(deltaTime : number) {
+    continueTSMoveOperation(deltaTime : number, currentlySnapping : boolean) {
         let opstate = this.operationState!;
+        opstate.snap = currentlySnapping;
 
         opstate.changeSignificant = (deltaTime != 0);
 

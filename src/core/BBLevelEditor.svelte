@@ -29,13 +29,16 @@
     let hasEnteredSettings = false;
     let beatGrid = 4;
     let preserveMode : BBTimelinePreserveMode = "KeepBeats";
-    let snapToBeat = false;
+    let snapToBeatSetting = false;
+    let snapInvert = false;
     let startBeatControl : OptionalNumber;
     let offsetControl : OptionalNumber;
     let lbControl : OptionalNumber;
     let vwavs : VariantWaveforms;
     let showChartEvents : boolean = true;
     let showLevelEvents : boolean = true;
+
+    $: snapToBeat = snapToBeatSetting != snapInvert;
 
     function handleVariantChanged() {
         console.log("Switching to variant ", selectedVariant);
@@ -65,6 +68,8 @@
      */
     $: zoom = zoom > maxzoom ? maxzoom : zoom;
     function onKeyDown(event : KeyboardEvent) {
+        checkCtrl(event);
+
         if (event.key === 'Escape') {
             handleEscape();
             return;
@@ -85,6 +90,33 @@
             return;
         }
     }
+
+    function checkCtrl(event : KeyboardEvent) {
+        snapInvert = event.ctrlKey != event.metaKey;
+    }
+
+    function onKeyPressed(event : KeyboardEvent) {
+        if (event.code === 'KeyT') {
+            preserveMode = "KeepTimes";
+            return;
+        }
+        
+        if (event.code === 'KeyG') {
+            preserveMode = "KeepTimesAfter";
+            return;
+        }
+        
+        if (event.code === 'KeyB') {
+            preserveMode = "KeepBeats";
+            return;
+        }
+
+        if (event.code === 'KeyS') {
+            snapToBeatSetting = !snapToBeatSetting;
+            return;
+        }
+    }
+
 
     let tsEscapeFirst = false;
     function handleEscape() {
@@ -119,11 +151,15 @@
     onMount(() => {
         document.body.addEventListener('mouseenter', onMouseReenterWindow);
         document.addEventListener('keydown', onKeyDown);
+        document.addEventListener('keypress', onKeyPressed);
+        document.addEventListener('keyup', checkCtrl);
 	});
 
     onDestroy(() => {
         document.body.removeEventListener('mouseenter', onMouseReenterWindow);
         document.removeEventListener('keydown', onKeyDown);
+        document.removeEventListener('keypress', onKeyPressed);
+        document.removeEventListener('keyup', checkCtrl);
 	});
 
     let isDragging = false;
@@ -266,6 +302,36 @@
             <button class="mmbutton enabled" on:click={openSettings}>Settings</button>
             <button class="mmbutton enabled" on:click={save}>Save</button>
             <button class="mmbutton enabled" on:click={home}>Home</button>
+            <div class="modezone">
+                <div class="moderadio">
+                    <button
+                        class="moderadiobutton timer"
+                        class:active={preserveMode==="KeepTimes"}
+                        on:click={()=>{preserveMode="KeepTimes"}}
+                    >
+                    </button>
+                    <button
+                        class="moderadiobutton timerbeat"
+                        class:active={preserveMode==="KeepTimesAfter"}
+                        on:click={()=>{preserveMode="KeepTimesAfter"}}
+                    >
+                    </button>
+                    <button
+                        class="moderadiobutton beat"
+                        class:active={preserveMode==="KeepBeats"}
+                        on:click={()=>{preserveMode="KeepBeats"}}
+                    >
+                </button>
+                </div>
+                
+                <div class="moderadio">
+                    <button
+                        class="snapbutton" class:active={snapToBeat}
+                        on:click={()=>{snapToBeatSetting = !snapToBeatSetting}}
+                    >
+                    </button>
+                </div>
+            </div>
             <div class="settingszone" class:hidden={!showSettings}  on:mouseenter={onEnterSettings} on:mouseleave={onExitSettings}>
                 <div>
                     Beat grid:
@@ -287,16 +353,16 @@
                 </div>
                 <div>
                     <label>
-                        <input type="checkbox" bind:checked={snapToBeat} />
+                        <input type="checkbox" bind:checked={snapToBeatSetting} />
                         Snap to beat?
                     </label>
                 </div>
                 <div>
                     Operation Mode:
                     <select bind:value={preserveMode}>
-                        <option value={"KeepBeats"}>Preserve All Beats</option>
                         <option value={"KeepTimes"}>Preserve All Times</option>
                         <option value={"KeepTimesAfter"}>Preserve Times After Next</option>
+                        <option value={"KeepBeats"}>Preserve All Beats</option>
                     </select>
                 </div>
                 <div class="info">These settings behave strangely! This is accurate to BeatBlock's behavior. If the song's true start beat is greater than zero, the load beat has no effect!</div>
@@ -409,7 +475,7 @@
     }
     .menubar {
         display: flex;
-        height:50px;
+        height:56px;
         overflow:visible;
     }
     .mainarea {
@@ -457,5 +523,60 @@
     }
     .settingszone select {
         background-color: var(--main-input-bg);
+    }
+    
+    .modezone {
+        padding:2px;
+        display:flex;
+    }
+    .moderadiobutton:hover {
+        background-color: rgba(255, 255, 255, 0.486);
+    }
+    .moderadiobutton:active {
+        background-color: rgba(255, 255, 255, 0.671);
+    }
+    .snapbutton, .moderadiobutton {
+        padding: 0px;
+        margin: 0px;
+        display: block;
+        border: none;
+        background-color: transparent;
+    }
+    .snapbutton {
+        width: 48px;
+        height: 48px;
+        background-image: url("assets/magnet_inactive.png");
+        margin-left: 2px;
+    }
+    .snapbutton.active {
+        background-image: url("assets/magnet_active.png");
+    }
+    .moderadiobutton.timer {
+        background-image: url("assets/keeptime_inactive.png")
+    }
+    .moderadiobutton.timerbeat {
+        background-image: url("assets/keepboth_inactive.png")
+    }
+    .moderadiobutton.beat {
+        background-image: url("assets/keepbeat_inactive.png")
+    }
+    .moderadiobutton.timer.active {
+        background-image: url("assets/keeptime_active.png")
+    }
+    .moderadiobutton.timerbeat.active {
+        /* trust me, this makes sense if you were there */
+        background-image: url("assets/IDONTEVENKNOWANYMORE.png")
+    }
+    .moderadiobutton.beat.active {
+        background-image: url("assets/keepbeat_active.png")
+    }
+    .moderadiobutton {
+        width: 16px;
+        height: 16px;
+    }
+    .moderadio {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-around;
     }
 </style>

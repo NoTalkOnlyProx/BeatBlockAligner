@@ -304,7 +304,7 @@
     }
     
     function preventNavDrag(event : MouseEvent) {
-        if (event.button != 1) {   
+        if (!isScrollSpecial(event)) {   
             event.stopPropagation();
         }
     }
@@ -338,7 +338,7 @@
     let dragInitialTime = 0;
 
     function startDragControl(event : MouseEvent, mustSave : boolean = false) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (!selectedControl) {
@@ -353,7 +353,7 @@
     }
 
     function startDragBeat(event : MouseEvent) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (!selectedControl || selectedTI == null) {
@@ -366,7 +366,7 @@
     }
     
     function startDragControlDup(event : MouseEvent) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (!selectedControl) {
@@ -377,7 +377,7 @@
     }
 
     function startDragControlSplit(event : MouseEvent) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (!selectedControl) {
@@ -426,11 +426,11 @@
         }
         let dragTime = mouseToTime(event.clientX);
         if (draggingControl) {
-            timeline.continueTSMoveOperation(dragTime - dragInitialTime);
+            timeline.continueTSMoveOperation(dragTime - dragInitialTime, snapToBeat);
             coTime = timeline.beatToTime(selectedControl!.event.time);
         }
         if (draggingBeat) {
-            timeline.continueTSStretchOperation(dragTime - dragInitialTime);
+            timeline.continueTSStretchOperation(dragTime - dragInitialTime, snapToBeat);
             coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI!, beatGrid));
         }
         timeline = timeline;

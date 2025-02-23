@@ -533,7 +533,7 @@
     }
 
     function preventNavDrag(event : MouseEvent) {
-        if (event.button != 1) {   
+        if (!isScrollSpecial(event)) {   
             event.stopPropagation();
         }
     }
@@ -577,7 +577,7 @@
         startStretch(event, false);
     }
     function startStretch(event : MouseEvent, left : boolean) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (selectedSelectables.length == 0) {
@@ -600,7 +600,7 @@
         startMove(event, false);
     }
     function startMove(event : MouseEvent, left : boolean) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (selectedSelectables.length == 0) {
@@ -624,7 +624,7 @@
         startAdjust(event, false);
     }
     function startAdjust(event : MouseEvent, left : boolean) {
-        if (isScrollSpecial(event)) {
+        if (isScrollSpecial(event, true)) {
             return;
         }
         if (selectedSelectables.length == 0) {
@@ -672,7 +672,7 @@
         if (stretching) {
             let nltime = lHandleStartTime + (draggingLeft ? delta : 0);
             let nrtime = rHandleStartTime + (draggingLeft ? 0 : delta);
-            timeline.continueStaticTransformOperation(nltime, nrtime);
+            timeline.continueStaticTransformOperation(nltime, nrtime, snapToBeat);
         }
         if (moving) {
             /* When performing move, we set the `preserve length` option,
@@ -681,7 +681,7 @@
              */
             let nltime = lHandleStartTime + delta;
             let nrtime = rHandleStartTime + delta;
-            timeline.continueStaticTransformOperation(nltime, nrtime);
+            timeline.continueStaticTransformOperation(nltime, nrtime, snapToBeat);
         }
         if (adjusting) {
             continueAdjust(delta);

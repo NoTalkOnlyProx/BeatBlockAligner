@@ -1,7 +1,7 @@
 import type { BBTimelineEvent } from "./BBTimeLine";
 
-export function isScrollSpecial(event : MouseEvent) {
-    return event.button != 0 || event.ctrlKey;
+export function isScrollSpecial(event : MouseEvent, ignoreCtrl = false) {
+    return event.button != 0 || (event.ctrlKey && !ignoreCtrl);
 }
 
 export function pixelsToRel(px : number, zoom : number, center : number) {
