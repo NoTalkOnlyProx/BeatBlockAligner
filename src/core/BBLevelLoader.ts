@@ -2,6 +2,7 @@ import type { LODAudioData } from "src/utils/SoundUtils";
 import type { BBTimelineEvent } from "./BBTimeLine";
 import type { BBChart, BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } from "./BBTypes";
 import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
+import { downloadTextFile, downloadZipContaining } from "./UXUtils";
 
 const SupportedVersions = [14];
 
@@ -28,6 +29,7 @@ export interface BBSoundFile {
 export class BBLevelLoader {
     manifest : BBManifest | undefined;
     variants : BBVariantFiles[] = [];
+    basename : string = "beatblock-level";
     constructor() {
     }
 
@@ -148,7 +150,10 @@ export class BBLevelLoader {
             loadFailed("Could not find manifest.json");
             return false;
         }
-        console.log("Level basepath: ", basePath);
+
+        this.basename = basePath.slice(basePath.slice(0, -1).lastIndexOf("/") + 1).replace("/", "");
+
+        console.log("Level basepath, basename: ", basePath, this.basename);
         console.log("Manifest File: ", manifestFile.fullPath);
         this.manifest = JSON.parse(await readFile(manifestFile as FileSystemFileEntry) as string) as BBManifest;
 
@@ -259,5 +264,17 @@ export class BBLevelLoader {
             return this.variants[0];
         }
         return this.variants.filter(variant => variant.name == name)?.[0];
+    }
+
+    downloadVariant(variant : BBVariantFiles) {
+        /* Everything in this application is carefully crafed so that variant.chart and .level are
+         * at all times the latest, up to date, stringifyable beatblock level/chart representations,
+         * so saving is as simple as exporting them to json.
+         */
+
+        downloadZipContaining(this.basename + ".zip", [
+            {name: variant.chartFileName, data :JSON.stringify(variant.chart)},
+            {name: variant.levelFileName, data :JSON.stringify(variant.level)}
+        ]);
     }
 }

@@ -1,3 +1,5 @@
+import JSZip from 'jszip';
+import FileSaver from 'file-saver';
 import type { BBTimelineEvent } from "./BBTimeLine";
 
 export function isScrollSpecial(event : MouseEvent, ignoreCtrl = false) {
@@ -85,4 +87,41 @@ export function getEventIconName(event : BBTimelineEvent) {
         return event.event.type;
     }
     return "genericEvent";
+}
+
+/* adapted from
+ * https://stackoverflow.com/questions/3665115/how-to-create-a-file-in-memory-for-user-to-download-but-not-through-server
+ *
+ * I decided not to use this, but I am keeping it in source code because I might want to later.
+ */
+export function downloadTextFile(filename : string, data : string) {
+    const blob = new Blob([data], {type: 'text/csv'});
+    // @ts-ignore
+    if(window.navigator.msSaveOrOpenBlob) {
+        // @ts-ignore
+        window.navigator.msSaveBlob(blob, filename);
+    }
+    else {
+        const elem = window.document.createElement('a');
+        let url = window.URL.createObjectURL(blob);
+        elem.href = url;
+        elem.download = filename;        
+        elem.style.display = "none";
+        document.body.appendChild(elem);
+        elem.click();        
+        document.body.removeChild(elem);
+        setTimeout(()=>{
+            window.URL.revokeObjectURL(url);
+        }, 10000)
+    }
+}
+
+/* Thanks, https://stackoverflow.com/questions/8608724/how-to-zip-files-using-javascript */
+export async function downloadZipContaining(zipname : string, files : {name: string, data : string}[]) {
+    let zip = new JSZip();
+    for (let file of files) {
+        zip.file(file.name, file.data);
+    }
+    let zipfile = await zip.generateAsync({ type: 'blob' });
+    FileSaver.saveAs(zipfile, zipname)
 }

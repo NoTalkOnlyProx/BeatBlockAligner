@@ -244,7 +244,7 @@
     }
 
     function save() {
-
+        bbll.downloadVariant(variant);
     }
 
     function home() {
