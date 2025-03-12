@@ -191,6 +191,20 @@ export class BBTimeLine  extends EventEmitter  {
         return this.timeControlEvents?.[this.timeControlEvents.indexOf(event!) + 1];
     }
 
+    /* Assumes events are sorted chronologically. */
+    getLastBeforeBeat(events : BBTimelineEvent[], beat : number) : BBTimelineEvent | null {
+        /* not sure why I bothered with binary search on the other impl, but I sure as hell won't be here... */
+        let last : BBTimelineEvent | null = null;
+        for (let event of events) {
+            if (event.event.time > beat) {
+                break;
+            }
+            last = event;
+        }
+        return last;
+    }
+
+    /* Assumes events are sorted chronologically. */
     getEventsNearTime(events : BBTimelineEvent[], time : number, threshold : number) : BBTimelineEvent[] { 
         let earliestTime = time - threshold/2;
         let latestTime = time + threshold/2;     

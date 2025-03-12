@@ -419,7 +419,7 @@
                         bind:timeline
                         on:interacted={onTimespaceInteraction}>
                     </TimeSpaceEditor>
-                    <div class="lanetitle">rhythm editor</div>
+                    <div class="lanetitle">timespace editor</div>
                 </div>
             </Pane>
             <Pane>
@@ -584,6 +584,7 @@
         justify-content: space-around;
     }
     .lanetitle {
+        writing-mode: sideways-lr;
         pointer-events: none;
         z-index: 200;
         background-color: rgba(0, 0, 0, 0.253);

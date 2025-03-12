@@ -29,7 +29,9 @@
     export let beatGrid : number = 4;
 
     function selectControl(event : BBTimelineEvent) {
-        console.log("Selected!");
+        if (event != selectedControl) {
+            selectedTI = null;
+        }
         selectedControl = event;
         choosingEvent = false;
         dispatch("interacted");
@@ -82,19 +84,40 @@
 
     function selectTI(ti : number) {
         dispatch("interacted");
-        if (!TISelectable(ti)) {
-            return false;
-        }
         selectedTI = ti;
+        selectedControl = timeline.getLastBeforeBeat(timeline.timeControlEvents, tiToBeat(ti));
         return true;
     }
 
+    function sanitizeTISel() {
+        if (!selectedControl) {
+            selectedTI = null;
+            return;
+        }
+        
+        if (!TISelectable(selectedTI ?? 0)) {
+            selectedTI = null;
+            return;
+        }
+
+        let prior = timeline.getLastBeforeBeat(timeline.timeControlEvents, tiToBeat(selectedTI));
+        if (prior != selectedControl) {
+            selectedTI = null;
+            return;
+        }
+    }
+
     function TISelectable(ti : number) {
+        let firstBeat = timeline.timeControlEvents?.[0].event.time ?? Infinity;
+        return tiToBeat(ti) > firstBeat;
+    }
+
+    function TIRecommended(ti : number) {
         return !draggingAny &&
             (selectedTI === null) &&
-            TIIsValidSelection(ti, selectedControl, beatGrid);
+            TIIsValidRecommendation(ti, selectedControl, beatGrid);
     }
-    function TIIsValidSelection(ti : number | null, selectedControl : BBTimelineEvent | null, beatGrid : number) {
+    function TIIsValidRecommendation(ti : number | null, selectedControl : BBTimelineEvent | null, beatGrid : number) {
         if (ti == null) {
             return false;
         }
@@ -105,13 +128,16 @@
             (!nextControl || beat < (nextControl.event.time - 0.5/beatGrid));
     }
 
+    //NTOPHere
+    function insertTI(e : MouseEvent) {
+        insertAtBeat(tiToBeat(selectedTI ?? 0));
+        e.stopPropagation();
+    }
+
     function deselectTI(e : MouseEvent) {
         selectedTI = null;
         e.stopPropagation();
     }
-
-
-    
 
     function mouseToTime(mx : number) {
         return timeline.relToTime(pixelsToRel(mx, zoom, center));
@@ -181,14 +207,15 @@
 
     function renderBeatTicks(ctx : CanvasRenderingContext2D) {
         let nearTI = beatToTI(timeline.timeToBeat(mouseToTime(mouseX)));
+        let canSelectTick = TISelectable(nearTI) && tooltipEvents.length == 0;
         for (let ti = leftmostTick; ti <= rightmostTick; ti++) {
             let tickX = getTickX(ti, timeline, zoom, center);
             renderTick(ctx, tickX, {
                 color:"#ACACAC",
                 hoverColor: "#FFFFFF",
-                hover : ti == nearTI,
-                selectable : TISelectable(ti),
-                selected : selectedTI === ti
+                hover : mouseInside && canSelectTick && ti == nearTI,
+                selected : (selectedTI === ti),
+                recommended : TIRecommended(ti)
             });
         }
 
@@ -209,19 +236,18 @@
             let controlX = getControlX(control, timeline, zoom, center);
             renderTick(ctx, controlX, {
                 color: "#FF0000",
-                hover: tooltipEvents.includes(control),
+                hover: mouseInside && tooltipEvents.includes(control),
                 selected: selectedControl === control,
-                selectable: selectedControl === null 
             });
         }
     }
 
     interface TickParams {
         selected? : boolean,
-        selectable? : boolean,
         hover? : boolean,
         color? : string,
-        hoverColor? : string
+        hoverColor? : string,
+        recommended? : boolean,
     }
 
     function renderTick(ctx : CanvasRenderingContext2D, x : number, params : TickParams = {}) {
@@ -231,11 +257,11 @@
         let normalcolor = params.color ?? "#FFF";
         let hoverColor = params.hoverColor ?? normalcolor;
 
-        let highlighted = (params.selectable && params.hover) || params.selected;
+        let highlighted = (params.hover) || params.selected;
 
-        let height = (!params.selectable || highlighted) ? fullHeight : partialHeight;
+        let height = (highlighted || !params.recommended) ? fullHeight : partialHeight;
         let color = highlighted ? hoverColor : normalcolor;
-        let width = (highlighted || params.selectable) ? 5 : 1;
+        let width = (highlighted) ? 5 : 1;
         let ofs = width/2;
         
         ctx.beginPath();
@@ -249,6 +275,7 @@
     $: zoom, center, selectedTI, selectedControl, choosingEvent, recomputeTooltip();
     let mouseX = 0;
     let mouseY = 0;
+    let mouseInside : boolean = false;
     let tooltipX : string = "0px";
     let tooltipY : string = "0px";
     function recomputeTooltip() {
@@ -256,30 +283,40 @@
             tooltipVisible = true;
             return;
         }
-        if (selectedControl == null) {
-            tooltipX = (mouseX + 20) + "px";
-            tooltipY = (mouseY) + "px";
-            let tooltipTime = timeline.relToTime(pixelsToRel(mouseX, zoom, center));
+        
+        tooltipX = (mouseX + 20) + "px";
+        tooltipY = (mouseY) + "px";
+        let tooltipTime = timeline.relToTime(pixelsToRel(mouseX, zoom, center));
 
-            /* Anything within 30 pixels */
-            let threshold = timeline.relToTimeDelta(relPixelsToRel(30, zoom));
-            tooltipEvents = timeline.getEventsNearTime(timeline.timeControlEvents, tooltipTime, threshold);
-            tooltipVisible = tooltipEvents.length > 0;
-            return;
+        /* Anything within 30 pixels */
+        let threshold = timeline.relToTimeDelta(relPixelsToRel(30, zoom));
+        tooltipEvents = timeline.getEventsNearTime(timeline.timeControlEvents, tooltipTime, threshold);
+        tooltipVisible = tooltipEvents.length > 0;
+
+        /* Don't show the tooltip if we're just hovering over the currently selected event,
+         * and there are no other selectables in the region.
+         */
+        if (tooltipEvents.length == 1 &&  tooltipEvents[0] == selectedControl) {
+            tooltipVisible = false;
         }
-        tooltipVisible = false;
     }
     function handleMouseMove(event: MouseEvent) {
         let crect = container.getBoundingClientRect();
         mouseX = event.clientX;
         mouseY = event.clientY - crect.top;
+        mouseInside = true;
         recomputeTooltip();
+    }
+    function mouseOverControl(event: MouseEvent) {
+        tooltipVisible = false;
+        mouseInside = false;
     }
     function handleMouseExit(event: MouseEvent) {
         if (choosingEvent) {
             return;
         }
         tooltipVisible = false;
+        mouseInside = false;
     }
 
     function beatToTI(beat : number) {
@@ -317,7 +354,6 @@
     }
 
     function getControlBPM(selectedControl : BBTimelineEvent, timeline : BBTimeLine) {
-        console.log("gcbpm");
         return (selectedControl?.event as BBSetsBPMEvent)?.bpm ?? null;
     }
 
@@ -428,9 +464,7 @@
             dispatch("interacted");
         }
 
-        if (!TIIsValidSelection(selectedTI, selectedControl, beatGrid)) {
-            selectedTI = null;
-        }
+        sanitizeTISel();
 
         timeline = timeline;
         draggingAny = false;
@@ -474,6 +508,9 @@
      * 
      * To prevent clicks that did NOT start within this element, we need to make that only
      * apply if a click is actively ongoing.
+     * 
+     * I am considering creating a dedicated UX utility for this pattern and using it everywhere,
+     * but for now keeping it localized here.
      */
     let isClickInProgress = false;
     let clickCancelled = false;
@@ -489,23 +526,23 @@
     }
 
     function handleMouseClick(e : MouseEvent) {
+        console.log("yo");
         isClickInProgress = false;
         
-        if (clickCancelled) {
+        /* Parent (or key combo) determined this click is from a drag start, so ignore it */
+        if (clickCancelled || isScrollSpecial(e)) {
             return;
         }
 
-        if (choosingEvent || isScrollSpecial(e)) {
-            return;
-        }
-        if (!selectedControl) {
-            if (tooltipEvents.length == 0) {
-                return;
-            }
+        /* If there is at least one TSE we can select, prioritize doing that */
+        if (tooltipEvents.length > 0) {
+            console.log("lol wtf", [...tooltipEvents]);
+
             if (tooltipEvents.length == 1) {
                 selectControl(tooltipEvents[0]);
             }
             else {
+                selectedTI = null;
                 choosingEvent = true;
             }
             e.preventDefault();
@@ -513,14 +550,14 @@
             return;
         }
 
-        if (selectedTI === null) {
-            let targetTI = beatToTI(timeline.timeToBeat(mouseToTime(e.clientX)));
-
+        /* Otherwise, if there is a valid tick to select, do that, and select the TSE prior to it */
+        let targetTI = beatToTI(timeline.timeToBeat(mouseToTime(e.clientX)));
+        if (TISelectable(targetTI)) {
+            console.log("eh?", targetTI);
             if (selectTI(targetTI)) {
                 e.stopPropagation();
                 e.preventDefault();
             }
-            return;
         }
     }
 
@@ -532,14 +569,18 @@
         if (snapToBeat) {
             mouseBeat = Math.round(mouseBeat * beatGrid)/beatGrid;
         }
-        let mouseBPM = timeline.beatToBPM(mouseBeat);
+        insertAtBeat(mouseBeat);
+    }
+
+    function insertAtBeat(beat : number) {
+        let mouseBPM = timeline.beatToBPM(beat);
         let setBPM : BBSetBPMEvent = {
             type: "setBPM",
-            time: mouseBeat,
+            time: beat,
             bpm: mouseBPM,
             angle: 0,
         };
-        timeline.addEvent(setBPM, true);
+        selectControl(timeline.addEvent(setBPM, true));
         timeline=timeline;
     }
 </script>
@@ -559,6 +600,7 @@
         <div
             class="controlzone"
             on:mousedown={preventNavDrag}
+            on:mousemove={mouseOverControl}
             style:left={`calc(${getControlX(selectedControl, timeline, zoom, center)}px + 6px)`}
         >
             <div class="controlTitle">{getDescription(selectedControl)}</div>
@@ -596,15 +638,24 @@
             <div class="controlTitle">Tick {selectedTI}</div>
             <div class="buttonzone">
                 <button class="move" on:mousedown={startDragBeat}>Stretch</button>
-                <button class="dup">Insert</button>
+                <button class="dup" on:click={insertTI}>Insert</button>
                 <button class="desel" on:click={deselectTI}>Deselect</button>
             </div>
         </div>
     {/if}
     {#if tooltipVisible}
-        <div class="tooltip" style:left={tooltipX} style:top={tooltipY}>
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+            class="tooltip"
+            on:mousedown={preventNavDrag}
+            style:left={tooltipX} style:top={tooltipY}>
             {#each tooltipEvents as event,i}
-                <button on:click={(e)=>selectControl(event)} class="ttevent" class:bright={i%2==0} class:clickable={choosingEvent}>{getDescription(event)}</button>
+                <button
+                    class="ttevent" class:bright={i%2==0} class:clickable={choosingEvent}
+                    on:click={(e)=>selectControl(event)}
+                >
+                    {getDescription(event)}
+                </button>
             {/each}
         </div>
     {/if}
