@@ -33,13 +33,16 @@
         }
     }
 
-    function handleDragover(e : Event) {
+    function cancelEvent(e : Event) {
         e.preventDefault();
+        e.stopPropagation();
     }
     function handleDragEnter() {
+        console.log("DENTER");
         dragging = true;
     }
     function handleDragLeave() {
+        console.log("DEXIT");
         dragging = false;
     }
 </script>
@@ -48,7 +51,7 @@
 <div
     class="dragcenter"
     on:drop={handleDrop}
-    on:dragover={handleDragover}
+    on:dragover={cancelEvent}
     on:dragenter={handleDragEnter}
     on:dragleave={handleDragLeave}
 >
@@ -57,7 +60,7 @@
     </div>
     <div class="reason">{lastReason}</div>
 </div>
-
+        
 
 <style>
     @import "../global.css";
@@ -75,11 +78,9 @@
         display: flex;
         justify-content: center;
         align-items: center;
-    }
-    .dragbox.dragging {
         pointer-events: none;
     }
-    .dragbox:hover, .dragging {
+    .dragging {
         background-color: var(--highlight-bg-color-hover);
         color: var(--highlight-text-color-hover);
         outline-color: var(--highlight-text-color-hover);
