@@ -1,7 +1,7 @@
 ---
 name: Bug report
 about: Report a bug
-title: "[BUG] Describe Bug Her"
+title: "[BUG] Describe Bug Here"
 labels: bug
 assignees: NoTalkOnlyProx
 
