@@ -1,11 +1,13 @@
 <script lang="ts">
-    import {default as Timecode, type FRAMERATE} from 'smpte-timecode';
     import { onMount, onDestroy } from 'svelte';
     import type { BBTimeLine } from './BBTimeLine';
     import { pixelsToRel, relToPixels } from './UXUtils';
     let ch : HTMLElement;
 
-    let msg = "HAI";
+    let msg_b = "HAI";
+    let msg_s = "HAI";
+    let msg_a = "HAI";
+    let msg_bpm = "HAI";
     
     export let timeline : BBTimeLine;
     export let zoom : number;
@@ -14,6 +16,19 @@
     /* Crosshair Override */
     export let coTime : number = 0;
     export let co : boolean = false;
+
+    function abletonTimecode(time : number) : string {
+        if (time < 0) {
+            return "-" + abletonTimecode(-time);
+        }
+        let millis = Math.floor((time % 1.0) * 1000);
+        time = Math.floor(time);
+        let seconds = time % 60;
+        time = Math.floor(time/60);
+        let minutes = time;
+       
+        return `${minutes.toFixed(0)}:${seconds.toFixed(0).padStart(2, "0")}:${millis.toFixed(0).padStart(3, "0")}`;
+    }
 
     let mx = 0;
 
@@ -27,15 +42,14 @@
         mx = event.clientX;
     }
 
-    function relToWindowRx(rel : number) {
-        return ((rel - center)*zoom/100) + 0.5;
-    }
-
     function updateTime(mx : number, zoom : number, center: number, co : boolean, coTime: number, timeline : BBTimeLine) {
         let crosshairTime = co ? coTime : timeline.relToTime(pixelsToRel(mx, zoom, center));
         let beat = timeline.timeToBeat(crosshairTime);
         let bpm = timeline.timeToBPM(crosshairTime);
-        msg = `${beat.toFixed(4)}b (${crosshairTime.toFixed(4)}s / ${new Timecode(crosshairTime * 1000, 1000 as FRAMERATE)}) [${bpm} bpm]`;
+        msg_b = `${beat.toFixed(4)}b`
+        msg_s = `${crosshairTime.toFixed(4)}s`
+        msg_a = `${abletonTimecode(crosshairTime)}`
+        msg_bpm = `[${bpm} bpm]`;
         
         if (ch) {
             let rect = ch.parentElement!.getBoundingClientRect();
@@ -50,9 +64,18 @@
 </script>
 <div bind:this={ch} class="crosshair">
     <div class="line"></div>
-    <div class="code">{msg}</div>
+    <div class="code">
+        <span>{msg_b}</span> <span class="msgs">({msg_s} / <span class="msga">{msg_a}</span>)</span> <span>{msg_bpm}</span>
+        
+    </div>
 </div>
 <style>
+    .msgs {
+        color: rgb(255, 30, 178);
+    }
+    .msga {
+        color: rgb(0, 231, 255);
+    }
     .crosshair {
         position: absolute;
         top:0px;
