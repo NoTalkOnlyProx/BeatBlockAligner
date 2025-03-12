@@ -423,15 +423,20 @@
                 </div>
             </Pane>
             <Pane>
-                <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                <EventEditor
-                    bind:beatGrid bind:preserveMode bind:snapToBeat
-                    bind:co bind:coTime bind:showLevelEvents bind:showChartEvents
-                    bind:this={eventEditor} bind:zoom bind:center bind:timeline
-                    on:interacted={onEventEditorInteraction}
-                    >
-                </EventEditor>
-                <div class="lanetitle">event editor</div>
+                <div style="width:100%; height:100%"
+                    on:drop={handleClickTrackDrop} 
+                    on:mousedown={onDragStart}
+                >
+                    <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
+                    <EventEditor
+                        bind:beatGrid bind:preserveMode bind:snapToBeat
+                        bind:co bind:coTime bind:showLevelEvents bind:showChartEvents
+                        bind:this={eventEditor} bind:zoom bind:center bind:timeline
+                        on:interacted={onEventEditorInteraction}
+                        >
+                    </EventEditor>
+                    <div class="lanetitle">event editor</div>
+                </div>
             </Pane>
         </Splitpanes>
         <Crosshair bind:co bind:coTime bind:zoom bind:center bind:timeline></Crosshair>

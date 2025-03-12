@@ -665,7 +665,8 @@
         let dragTime = mouseToTime(event.clientX);
         let delta = dragTime - dragInitialTime;
 
-        if (stretching || adjusting) {
+
+        if (stretching || moving) {
             coTime = (draggingLeft ? lHandleStartTime : rHandleStartTime) + delta;
         }
         
@@ -769,7 +770,7 @@
                 <button on:mousedown={startStretchLeft}>Stretch</button>
             </div>
             <div class="buttonzone bottom left">
-                <button  on:mousedown={startAdjustRight}>Adjust</button>
+                <button  on:mousedown={startAdjustLeft}>Adjust</button>
                 <button on:click={selectAllBetween}>All</button>
             </div>
             <div class = "line"></div>

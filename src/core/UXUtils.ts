@@ -40,7 +40,6 @@ export const eventIcons : {[index: string] : string} = {
     noise               : "assets/noise.png",
     bookmark            : "assets/bookmark.png",
     setbpm              : "assets/setbpm.png",
-    forcePlayerSprite   : "assets/forceplay.png",
     setBoolean          : "assets/setboolean.png",
     paddle              : "assets/paddle.png",
     playSound           : "assets/playsound.png",
@@ -54,9 +53,6 @@ export const eventIcons : {[index: string] : string} = {
     mineHold            : "assets/mineHold.png",
     side                : "assets/side.png",
     trace               : "assets/trace.png",
-
-    /* This forces me to handle invalid icons */
-    BADBAD               : "baaaad",
 
     genericEvent        : "assets/genericevent.png"
 }

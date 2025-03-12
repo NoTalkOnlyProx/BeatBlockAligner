@@ -592,7 +592,6 @@ export class BBTimeLine  extends EventEmitter  {
 
     beginTSMoveOperation(targetControl : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                        snap : boolean, snapGrid : number, mustSave : boolean) {
-        console.log("begin move", pmode);
         this.beginOperation({pmode, snap, snapGrid, targetControl, mustSave});
         this.alertBeginOp();
     }
@@ -639,8 +638,6 @@ export class BBTimeLine  extends EventEmitter  {
          * Preservation distance is based on beats if using beatspace, otherwise time.
          */
         let snapGrid = opstate.snapGrid ?? 1;
-
-        console.log(opstate.leftDominant, opstate.preserveLength);
 
         if (opstate.leftDominant) {
             if (opstate.snap) {
@@ -884,7 +881,6 @@ export class BBTimeLine  extends EventEmitter  {
         }
         /* Everything is time-remapped */
         if (opstate.pmode == "KeepTimes") {
-            console.log(opstate);
             this.restitchTimes();
             this.alertContinueTSKeepTimesAfterTime();
             return;
@@ -1042,8 +1038,6 @@ export class BBTimeLine  extends EventEmitter  {
         let tlev = this.registerEvent(clone, toChart, false);
 
         this.finishTSAlterEvents();
-
-        console.log("TCEV", this.timeControlEvents);
 
         if (saveUndo) {
             this.saveUndoPoint("addEvent", false);

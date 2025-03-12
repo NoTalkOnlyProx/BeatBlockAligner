@@ -526,7 +526,6 @@
     }
 
     function handleMouseClick(e : MouseEvent) {
-        console.log("yo");
         isClickInProgress = false;
         
         /* Parent (or key combo) determined this click is from a drag start, so ignore it */
@@ -536,8 +535,6 @@
 
         /* If there is at least one TSE we can select, prioritize doing that */
         if (tooltipEvents.length > 0) {
-            console.log("lol wtf", [...tooltipEvents]);
-
             if (tooltipEvents.length == 1) {
                 selectControl(tooltipEvents[0]);
             }
@@ -553,7 +550,6 @@
         /* Otherwise, if there is a valid tick to select, do that, and select the TSE prior to it */
         let targetTI = beatToTI(timeline.timeToBeat(mouseToTime(e.clientX)));
         if (TISelectable(targetTI)) {
-            console.log("eh?", targetTI);
             if (selectTI(targetTI)) {
                 e.stopPropagation();
                 e.preventDefault();
