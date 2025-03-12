@@ -62,11 +62,12 @@
         timeline=timeline;
     }
 
-    
-    function deleteClickTrack(tle : BBTimelineEvent, i : number = 0) {
+    function deleteClickTrack(e : MouseEvent, tle : BBTimelineEvent, i : number = 0) {
         let sound = soundInfo(timeline, tle);
         sound.clickTracks.splice(i, 1);
         timeline=timeline;
+        e.stopPropagation();
+        e.preventDefault();
     }
 
     export async function handleClickTrackDrop(e : DragEvent) {
@@ -102,7 +103,7 @@
                             {ct.filename}
                             <button
                                 class="wavebutton del"
-                                on:click={deleteClickTrack(tle, i)}
+                                on:click={(e)=>deleteClickTrack(e, tle, i)}
                             >
                                 Delete
                             </button>

@@ -9,6 +9,7 @@
     export let data : LODAudioData;
     let cv : HTMLCanvasElement;
     let container : HTMLDivElement;
+    let headerContainer : HTMLDivElement;
     export let start;
     export let length;
     export let bgcol: string = "#ffffff21";
@@ -39,17 +40,22 @@
     let lastMinX = -1;
     let lastMaxX = -1;
     function render() {
-        /* Set to zero for production */
-        const test_margin = 0;
-
         /* Calculate visible subregion within container rect
          * Simplifying assumption: We are visible anywhere within the viewport.
          */
         let containerRect = container.getBoundingClientRect();
-        let minX = Math.max(test_margin, containerRect.left);
-        let maxX = Math.min(window.innerWidth - test_margin, containerRect.right);
+        let minX = Math.max(0, containerRect.left);
+        let maxX = Math.min(window.innerWidth, containerRect.right);
         let width = maxX - minX;
         let height = containerRect.height;
+
+        
+        /* 24 is hand-calculated offset to line up with lane titles.
+         * It just does not seem worth the sphaghetti code to make this auto-calculated.
+         */
+        let minXHeader = Math.max(24, containerRect.left);
+        headerContainer.style.left = (minXHeader - containerRect.left) + "px";
+        headerContainer.style.display = width > 100 ? "block" : "none";
 
 
         /* Don't redraw unless there are changes. */
@@ -162,7 +168,9 @@
     bind:this={container} class="waveform" style={$$props.style} style:left={start + "px"} style:height={"100px"} style:width={length + "px"} >
     <canvas class="waverender" bind:this={cv} style:background-color={current_bgcol}>
     </canvas>
-    <slot/>
+    <div bind:this={headerContainer} class="header">
+        <slot/>
+    </div>
 </div>
 <style>
     .waverender {
@@ -171,5 +179,10 @@
     }
     .waveform {
         height:100%;
+    }
+    .header {
+        position: absolute;
+        top: 0px;
+        left: 0px;
     }
 </style>

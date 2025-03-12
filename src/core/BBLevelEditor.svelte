@@ -511,7 +511,7 @@
         top:100%;
         min-width:100%;
         min-height:100px;
-        z-index: 200;
+        z-index: 400;
     }
     .settingszone > div.info {
         white-space: normal;
@@ -587,10 +587,13 @@
         writing-mode: sideways-lr;
         pointer-events: none;
         z-index: 200;
-        background-color: rgba(0, 0, 0, 0.253);
+        background-color: rgba(0, 0, 0, 0.425);
         position: absolute;
         top: 0px;
         left: 0px;
-        padding-left : 3px;
+        padding : 3px;
+        height: 100%;
+        text-wrap: nowrap;
+        text-align: center;
     }
 </style>
