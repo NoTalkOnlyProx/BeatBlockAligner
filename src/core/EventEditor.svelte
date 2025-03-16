@@ -802,13 +802,15 @@
         ignoreStaticUpdates = false;
     }
 </script>
-<!-- svelte-ignore a11y-no-static-element-interactions -->
-<div class="container"
-    on:mousedown={onSelectStart}
-    on:mousemove={handleMouseMove}
-    on:mouseup={onSelectFinish}
->
-    <canvas class="drawzone" bind:this={cv}></canvas>
+<div class="container">
+    <!-- svelte-ignore a11y-no-static-element-interactions -->
+    <div class="eventzone"
+        on:mousedown={onSelectStart}
+        on:mousemove={handleMouseMove}
+        on:mouseup={onSelectFinish}
+    >
+        <canvas class="drawzone" bind:this={cv}></canvas>
+    </div>
     {#if selecting}
         <div
             class="selectionbox"
@@ -861,6 +863,29 @@
     {/if}
 </div>
 <style>
+    /* This element expands to fill its container,
+     * but does not cover the scrollbar of the container.
+     * That way events always work within the VISIBLE, non-scroll area of the
+     * event editor.
+     *
+     * We can't do this with the .container element directly, because that includes
+     * events on the scroll.
+     *
+     * And we can't make the internal canvas expand, because that is what defines the
+     * minimum collapsed scrolling area in the first place.
+     */
+    .eventzone {
+        width: 100%;
+        height: 100%;
+        position: relative;
+    }
+    
+    .drawzone {
+        width: 100%;
+        height: 100px;
+        position: relative;
+    }
+
     .bracket {
         position: absolute;
         height: 440px;
@@ -906,11 +931,6 @@
         overflow-x: hidden;
         overflow-y: auto;
         position: absolute;
-    }
-    .drawzone {
-        width: 100%;
-        height: 100px;
-        position: relative;
     }
     .selectionbox {
         position: absolute;
