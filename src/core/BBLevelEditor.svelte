@@ -4,7 +4,6 @@
     import { BBLevelLoader, type BBVariantFiles } from './BBLevelLoader';
     import { onMount, onDestroy } from 'svelte';
     import { BBTimeLine, type BBTimelinePreserveMode } from './BBTimeLine';
-    import VariantWaveforms from './VariantWaveforms.svelte';
     import TimeSpaceEditor from './TimeSpaceEditor.svelte';
     import EventEditor from './EventEditor.svelte';
     import Crosshair from './Crosshair.svelte';

@@ -168,7 +168,8 @@
     function render() {
         let bounds = cv.getBoundingClientRect();
         cv.width = bounds.width;
-        cv.height = bounds.height;
+        cv.height = angleHeight + 2 * marginHeight;
+        cv.style.height = `${cv.height}px`;
 
         const ctx = cv.getContext("2d")!;
         ctx.clearRect(0, 0, cv.width, cv.height);
@@ -864,6 +865,7 @@
     .bracket {
         position: absolute;
         height: 440px;
+        top: 0px;
     }
 
     .bracket > .line {
@@ -900,13 +902,16 @@
     }
 
     .container {
-        width: 100px;
-        height: 440px;
+        width: 100%;
+        height: 100%;
+        overflow-x: hidden;
+        overflow-y: auto;
+        position: absolute;
     }
     .drawzone {
         width: 100%;
-        height: 100%;
-        position: absolute;
+        height: 100px;
+        position: relative;
     }
     .selectionbox {
         position: absolute;

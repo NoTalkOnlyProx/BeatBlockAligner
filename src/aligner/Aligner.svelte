@@ -140,6 +140,7 @@
         position: absolute;
         bottom: 0px;
         box-sizing: border-box;
+        pointer-events: none;
     }
     .center {
         display: flex;
@@ -151,6 +152,7 @@
     }
     .footer > * {
         text-wrap: nowrap;
+        pointer-events: auto;
     }
     a:hover {
         color: var(--highlight-text-color-hover);
