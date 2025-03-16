@@ -25,10 +25,21 @@ export function generateAudioLODs(soundData : AudioBuffer, filename : string) : 
 
             /* This subsampling technique is a simple way to keep peaks visually obvious */
             for (let i = 0; i < nextLen; i++) {
+                /* Sample the next four, since only every other sample includes the min/max! */
                 if (i%2 == 0) {
-                    nextLOD[i] = Math.min(LOD[i*2], LOD[i*2 + 1]);
+                    nextLOD[i] = Math.min(
+                        LOD[i*2 + 0] ?? 0,
+                        LOD[i*2 + 1] ?? 0,
+                        LOD[i*2 + 2] ?? 0,
+                        LOD[i*2 + 3] ?? 0,
+                    );
                 } else {
-                    nextLOD[i] = Math.max(LOD[i*2], LOD[i*2 + 1]);
+                    nextLOD[i] = Math.max(
+                        LOD[i*2 + 0] ?? 0,
+                        LOD[i*2 + 1] ?? 0,
+                        LOD[i*2 - 2] ?? 0,
+                        LOD[i*2 - 1] ?? 0,
+                    );
                 }
             }
             LODs.push(nextLOD);
