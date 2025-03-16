@@ -394,7 +394,6 @@ export class BBTimeLine  extends EventEmitter  {
         } else {
             this.variant.level.properties.loadBeat = nlb;
         }
-        //TODO
         this.recomputeTimeSpace();
         if (save) {
             this.saveUndoPoint("loadBeat", true);
@@ -680,16 +679,33 @@ export class BBTimeLine  extends EventEmitter  {
         let ndbeat = nrbeat - nlbeat;
         let dtime = rtime - ltime;
         let ndtime = nrtime - nltime;
+
+        /* It is possible to select an infinitely thin working area, which if we do nothing about
+         * it causes NaN during stretch compute.
+         *
+         * hypothetically the correct solution is to detect this in the event editor,
+         * and then split this off as a special mode, but I kinda prefer just checking the
+         * magnitude of the stretch factor denominator and clamping to 1 if we are in a
+         * degenerate state, the code is just simpler.
+         */
+        let scaleFactorBeat = ndbeat/dbeat;
+        let scaleFactorTime = ndtime/dtime;
+        
+        if (Math.abs(dtime) < 0.0000001) {
+            scaleFactorBeat = 1;
+            scaleFactorTime = 1;
+        }
+
         let apply = (otime : number, obeat : number) => {
             let ntime;
             let nbeat;
             if (beatspace) {
                 /* Beatwise linear (preserve beat ratios) */
-                nbeat = (obeat - lbeat)/dbeat * ndbeat + nlbeat;
+                nbeat = (obeat - lbeat) * scaleFactorBeat + nlbeat;
                 ntime = this.beatToTime(nbeat);
             } else {
                 /* Timewise linear (preserve time ratios) */
-                ntime = (otime - ltime)/dtime * ndtime + nltime;
+                ntime = (otime - ltime) * scaleFactorTime + nltime;
                 nbeat = this.timeToBeat(ntime);
             }
             return {time: ntime, beat: nbeat};
@@ -731,19 +747,35 @@ export class BBTimeLine  extends EventEmitter  {
         /* perform time remapping on true events */
         let selection : BBSelectionPoint[] = opstate.staticSelection ?? [];
         for (let sp of selection) {
+            let affectHead = true;
             if (sp.tail) {
-                continue;
+                if (selection.includes(sp.other!)) {
+                    /* The head is in our selection, we'll just skip the tail, and modify it as
+                     * part of the head op.
+                     */
+                    continue;
+                }
+                /* The head is NOT in our selection, so we need to do a head-op on it,
+                 * but without actually modifying the head.
+                 */
+                sp = sp.other!;
+                affectHead = false;
             }
             let originalState = opstate.initialState.get(sp.event)!;
             let originalBeat = originalState.originalBeat;
-            let newBeat = applyBeat(originalBeat).beat;
-            sp.event.event.time = newBeat;
+            let headNewBeat = sp.event.event.time;
+            
+            if (affectHead) {
+                headNewBeat = applyBeat(originalBeat).beat;
+                sp.event.event.time = headNewBeat;
+            }
 
+            /* Adjust tail if it exists */
             if (sp.other) {
                 let durationEvent : BBDurationEvent = sp.event.event as BBDurationEvent;
                 let tailOriginalBeat = originalBeat + originalState.originalDuration!;
                 let tailNewBeat = selection.includes(sp.other) ? applyBeat(tailOriginalBeat).beat : tailOriginalBeat;
-                let newDuration = tailNewBeat - newBeat;
+                let newDuration = tailNewBeat - headNewBeat;
                 durationEvent.duration = Math.max(newDuration, 0);
             }
         }

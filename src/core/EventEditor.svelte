@@ -583,6 +583,33 @@
         if (selectedSelectables.length == 0) {
             return;
         }
+
+
+        /* If all selected events have the same timestamp, and if the stretch region is zero, treat
+         * stretch as if it were simply a move. This is to avoid weird behavior that, although
+         * is technically correct, might confuse users.
+         */
+        if (lHandleTime === rHandleTime) {
+            let allSameBeat = true;
+            let first = true;
+            let beat = 0;
+            for (let sp of selectedSelectables) {
+                if (first) {
+                    beat = spToBeat(sp);
+                    continue;
+                }
+                if (spToBeat(sp) != beat) {
+                    allSameBeat = false;
+                    break;
+                }
+            }
+
+            if (allSameBeat) {
+                startMove(event, left);
+                return;
+            }
+        }
+        
         stretching = true;
         timeline.beginStaticTransformOperation(
             lHandleTime, rHandleTime,
