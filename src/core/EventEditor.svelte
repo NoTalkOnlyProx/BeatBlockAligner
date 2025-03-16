@@ -15,7 +15,6 @@
     export let coTime : number;
     const angleHeight = 320;
     const marginHeight = 60;
-    let lane : HTMLElement;
 
     export let showChartEvents : boolean = true;
     export let showLevelEvents : boolean = true;
@@ -379,12 +378,12 @@
     let selectionHeight = 0;
 
     function mouseCoords(mx : number, my : number) {
-        if (!lane) {
+        if (!cv) {
             return {angle: 0, time: 0};
         }
 
-        let laneRect = lane.getBoundingClientRect();
-        let angle = yPosToAng(my - laneRect.top);
+        let bounds = cv.getBoundingClientRect();
+        let angle = yPosToAng(my - bounds.top);
         let time = timeline.relToTime(pixelsToRel(mx, zoom, center));
         return {angle, time}
     }
@@ -804,7 +803,7 @@
     }
 </script>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
-<div bind:this={lane} class="container"
+<div class="container"
     on:mousedown={onSelectStart}
     on:mousemove={handleMouseMove}
     on:mouseup={onSelectFinish}

@@ -210,10 +210,15 @@ export class BBTimeLine  extends EventEmitter  {
     }
 
     getEventsNearTimeAndAngle(events : BBTimelineEvent[], time : number, threshold : number,
-                              angle: number, intersect = false, angthresh : number = 10) {
+                              angle: number, intersect = false, wrapDelta = false,
+                              angthresh : number = 10) {
         let fevents = this.getEventsNearTime(events, time, threshold, intersect);
         return fevents.filter(ev => {
-            return Math.abs(wrapAngle((ev.event.angle ?? 0) - angle)) < angthresh;
+            let delta = (wrapAngle(ev.event.angle ?? 0)) - angle;
+            if (wrapDelta) {
+                delta = wrapAngle(delta)
+            }
+            return Math.abs(delta) < angthresh;
         });
     }
 
