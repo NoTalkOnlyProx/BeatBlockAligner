@@ -11,7 +11,7 @@
     import Crosshair from './Crosshair.svelte';
     import TimeSpaceMarkers from './TimeSpaceMarkers.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
-    import { relPixelsToRel, pixelsToRel } from './UXUtils';
+    import { relPixelsToRel, pixelsToRel } from '../utils/UXUtils';
     export let bbll : BBLevelLoader;
     let maxzoom = 4000;
     let zoom = 0.75;

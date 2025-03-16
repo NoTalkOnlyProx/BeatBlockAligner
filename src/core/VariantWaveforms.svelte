@@ -6,7 +6,7 @@
     import TimelineLanes from "./TimelineLanes.svelte";
     import Waveform from "./Waveform.svelte";
     import type { BBPlayEvent } from "./BBTypes";
-    import { relToRelPixels } from "./UXUtils";
+    import { relToRelPixels } from "../utils/UXUtils";
 
     export let timeline : BBTimeLine;
     export let zoom : number;

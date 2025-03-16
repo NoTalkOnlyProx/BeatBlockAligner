@@ -1,10 +1,11 @@
 <script lang="ts">
-    import { getEventDescription, preventNavDrag } from "./UXUtils";
+    import { preventNavDrag } from "../utils/UXUtils";
+    import { getEventDescription } from "../utils/BBUtils";
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
     import type {BBPlayEvent, BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
     import OptionalNumber from './OptionalNumber.svelte';
-    import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from './UXUtils';
+    import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from '../utils/UXUtils';
     import { createEventDispatcher } from 'svelte';
     import BbEventTooltip from './BBEventTooltip.svelte';
     const dispatch = createEventDispatcher();
@@ -102,7 +103,7 @@
             return;
         }
 
-        let prior = timeline.getLastBeforeBeat(timeline.timeControlEvents, tiToBeat(selectedTI));
+        let prior = timeline.getLastBeforeBeat(timeline.timeControlEvents, tiToBeat(selectedTI ?? 0));
         if (prior != selectedControl) {
             selectedTI = null;
             return;
@@ -119,6 +120,7 @@
             (selectedTI === null) &&
             TIIsValidRecommendation(ti, selectedControl, beatGrid);
     }
+
     function TIIsValidRecommendation(ti : number | null, selectedControl : BBTimelineEvent | null, beatGrid : number) {
         if (ti == null) {
             return false;
@@ -304,7 +306,6 @@
         }
     }
     function handleMouseMove(event: MouseEvent) {
-        let crect = container.getBoundingClientRect();
         mouseX = event.clientX;
         mouseY = event.clientY;
         mouseInside = true;
@@ -631,6 +632,7 @@
     {/if}
     {#if tooltipVisible}
         <BbEventTooltip
+            eventSource={timeline.timeControlEvents}
             bind:choosing={choosingEvent} bind:tooltipEvents bind:x={tooltipX} bind:y={tooltipY}
             on:select={(e)=>{selectControl(e.detail)}}
         >

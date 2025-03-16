@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onMount, onDestroy } from 'svelte';
     import type { BBTimeLine } from './BBTimeLine';
-    import { pixelsToRel, relToPixels } from './UXUtils';
+    import { pixelsToRel, relToPixels } from '../utils/UXUtils';
     let ch : HTMLElement;
 
     let msg_b = "HAI";

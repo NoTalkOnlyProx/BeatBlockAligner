@@ -2,7 +2,7 @@ import type { LODAudioData } from "src/utils/SoundUtils";
 import type { BBTimelineEvent } from "./BBTimeLine";
 import type { BBChart, BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } from "./BBTypes";
 import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
-import { downloadTextFile, downloadZipContaining } from "./UXUtils";
+import { downloadTextFile, downloadZipContaining } from "../utils/UXUtils";
 
 const SupportedVersions = [14];
 

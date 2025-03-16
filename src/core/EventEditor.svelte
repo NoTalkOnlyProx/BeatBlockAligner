@@ -1,9 +1,11 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBSelectionPoint, type BBTimelineApplyOpBeatCallback, type BBTimelineApplyOpTimeCallback, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
-    import { isScrollSpecial, relPixelsToRel, pixelsToRel, relToRelPixels, relToPixels, preloadIcons, eventIcons, getIcon, getEventIconName } from './UXUtils';
+    import { isScrollSpecial, relPixelsToRel, pixelsToRel, relToPixels, preloadIcons, eventIcons, getIcon, getEventIconName } from '../utils/UXUtils';
     import type { BBDurationEvent } from './BBTypes';
     import { createEventDispatcher } from 'svelte';
+    import { wrapAngle } from 'src/utils/BBUtils';
+    import BbEventTooltip from './BBEventTooltip.svelte';
     const dispatch = createEventDispatcher();
 
     export let timeline : BBTimeLine;
@@ -21,6 +23,12 @@
     export let preserveMode : BBTimelinePreserveMode = "KeepBeats";
     export let snapToBeat = false;
     export let beatGrid : number = 4;
+
+    
+    let tooltipVisible = false;
+    let tooltipEvents : BBTimelineEvent[];
+    let tooltipX : number = 0;
+    let tooltipY : number = 0;
 
 
     /* selectableCache helps us not create brand new Selectables for selectable events that
@@ -330,16 +338,6 @@
         return beat;
     }
 
-    /* Wrap angle from -180 to 180 */
-    function wrapAngle(ang : number) {
-        /* This magic deals with negative inputs */
-        ang = (360 + ang%360)%360;
-        if (ang > 180) {
-            ang -= 360;
-        }
-        return ang;
-    }
-
     function angToYPos(ang : number, wrap = true) {
         if (wrap) {
             ang = wrapAngle(ang);
@@ -380,6 +378,10 @@
     let selectionHeight = 0;
 
     function mouseCoords(mx : number, my : number) {
+        if (!lane) {
+            return {angle: 0, time: 0};
+        }
+
         let laneRect = lane.getBoundingClientRect();
         let angle = yPosToAng(my - laneRect.top);
         let time = timeline.relToTime(pixelsToRel(mx, zoom, center));
@@ -431,6 +433,12 @@
         let {time, angle} = mouseCoords(x, y);
         endSelectionAngle = angle;
         endSelectionTime = time;
+        
+        /* We have to override the crosshair here, since we are currently grabbing the mouse event
+         * that would ordinarily passively update the crosshair
+         */
+        coTime = time;
+        co = true;
 
         let minSelectionTime = Math.min(startSelectionTime, endSelectionTime);
         let maxSelectionTime = Math.max(startSelectionTime, endSelectionTime);
@@ -482,13 +490,38 @@
         redrawBox();
     }
 
+    $: zoom, center, selecting, recomputeTooltip();
+    function recomputeTooltip() {
+        if (selecting || selectedSelectables.length > 0) {
+            tooltipVisible = false;
+            return;
+        }
+
+        let {time, angle} = mouseCoords(tooltipX, tooltipY);
+
+        /* Anything within 30 pixels */
+        let threshold = timeline.relToTimeDelta(relPixelsToRel(30, zoom));
+        tooltipEvents = timeline.getEventsNearTimeAndAngle(
+            timeline.staticEvents, time, threshold, angle, true
+        );
+
+        tooltipVisible = tooltipEvents.length > 0;
+    }
+
+    export function handleMouseMove(event : MouseEvent) {
+        if (selecting) { 
+            onSelectContinue(event);
+        } else {
+            tooltipX = event.clientX;
+            tooltipY = event.clientY;
+            recomputeTooltip();
+        }
+    }
 
     export function onSelectContinue(event : MouseEvent) {
-        if (selecting) { 
-            event.preventDefault();
-            event.stopPropagation();
-            recomputeSelectEnd(event.clientX, event.clientY);
-        }
+        event.preventDefault();
+        event.stopPropagation();
+        recomputeSelectEnd(event.clientX, event.clientY);
     }
 
     let lHandleTime = 0;
@@ -498,6 +531,7 @@
             return;
         }
         selecting = false;
+        co = false;
 
         dispatch("interacted");
 
@@ -692,7 +726,6 @@
         let dragTime = mouseToTime(event.clientX);
         let delta = dragTime - dragInitialTime;
 
-
         if (stretching || moving) {
             coTime = (draggingLeft ? lHandleStartTime : rHandleStartTime) + delta;
         }
@@ -772,7 +805,7 @@
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div bind:this={lane} class="container"
     on:mousedown={onSelectStart}
-    on:mousemove={onSelectContinue}
+    on:mousemove={handleMouseMove}
     on:mouseup={onSelectFinish}
 >
     <canvas class="drawzone" bind:this={cv}></canvas>
@@ -818,6 +851,13 @@
             </div>
             <div class = "line"></div>
         </div>
+    {/if}
+    {#if tooltipVisible}
+        <BbEventTooltip
+            eventSource={timeline.staticEvents}
+            bind:tooltipEvents bind:x={tooltipX} bind:y={tooltipY}
+        >
+        </BbEventTooltip>
     {/if}
 </div>
 <style>

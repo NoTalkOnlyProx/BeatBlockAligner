@@ -1,8 +1,10 @@
 <script lang="ts">
     import { createEventDispatcher } from "svelte";
     import type { BBTimelineEvent } from "./BBTimeLine";
-    import { getEventDescription, preventNavDrag } from "./UXUtils";
+    import { preventNavDrag } from "../utils/UXUtils";
+    import { getEventDescription, getUniquePropSet } from "../utils/BBUtils";
 
+    export let eventSource : BBTimelineEvent[];
     export let tooltipEvents : BBTimelineEvent[];
     export let x = 0;
     export let y = 0;
@@ -23,7 +25,7 @@
             class="ttevent" class:bright={i%2==0} class:clickable={choosing}
             on:click={(e)=>selectControl(event)}
         >
-            {getEventDescription(event)}
+            {getEventDescription(event, eventSource.indexOf(event), getUniquePropSet(tooltipEvents))}
         </button>
     {/each}
 </div>
@@ -42,6 +44,7 @@
         background-color: transparent;
         border: none;
         display: block;
+        width:100%;
     }
     .ttevent.bright {
         background-color: var(--tooltip-color-bright);

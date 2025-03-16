@@ -1,7 +1,7 @@
 <script lang="ts">
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine } from './BBTimeLine';
-    import { relToPixels, relToRelPixels } from './UXUtils';
+    import { relToPixels, relToRelPixels } from '../utils/UXUtils';
     export let timeline : BBTimeLine;
     export let zoom = 0;
     export let center = 0;

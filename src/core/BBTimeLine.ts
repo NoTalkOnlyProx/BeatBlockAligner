@@ -1,3 +1,4 @@
+import { wrapAngle } from "src/utils/BBUtils";
 import type { BBVariantFiles } from "./BBLevelLoader";
 import type { BBDurationEvent, BBEvent, BBPlayEvent, BBSetsBPMEvent } from "./BBTypes";
 import {EventEmitter} from 'eventemitter3';
@@ -25,8 +26,12 @@ function sortEvents(events : BBEvent[]) {
     events.sort((a, b) => (a?.time ?? 0) - (b?.time ?? 0));
 }
 
-function sortTimelineEvents(events : BBTimelineEvent[]) {
+function sortTimelineEventsRealBeat(events : BBTimelineEvent[]) {
     events.sort((a, b) => (a?.realbeat ?? 0) - (b?.realbeat ?? 0));
+}
+
+function sortTimelineEvents(events : BBTimelineEvent[]) {
+    events.sort((a, b) => (a?.event.time ?? 0) - (b?.event.time ?? 0));
 }
 
 /* A point on a Time/Beat monotonic function */
@@ -204,40 +209,39 @@ export class BBTimeLine  extends EventEmitter  {
         return last;
     }
 
+    getEventsNearTimeAndAngle(events : BBTimelineEvent[], time : number, threshold : number,
+                              angle: number, intersect = false, angthresh : number = 10) {
+        let fevents = this.getEventsNearTime(events, time, threshold, intersect);
+        return fevents.filter(ev => {
+            return Math.abs(wrapAngle((ev.event.angle ?? 0) - angle)) < angthresh;
+        });
+    }
+
     /* Assumes events are sorted chronologically. */
-    getEventsNearTime(events : BBTimelineEvent[], time : number, threshold : number) : BBTimelineEvent[] { 
+    getEventsNearTime(events : BBTimelineEvent[], time : number, threshold : number, intersect = false) : BBTimelineEvent[] { 
         let earliestTime = time - threshold/2;
         let latestTime = time + threshold/2;     
-        
-        let lower = 0;
-        let upper = events.length-1;
+        return this.getEventsInTimeRange(events, earliestTime, latestTime, intersect);
+    }
 
-
-        if (events.length == 0) {
-            return [];
-        }
-
-        while (upper != lower) {
-            let next = Math.ceil((upper + lower)/2);
-            let nextTime = this.beatToTime(events[next].event.time);
-            if (nextTime > earliestTime) {
-                upper = next - 1;
-            } else {
-                lower = next;
-            }
-        }
-
-
+    getEventsInTimeRange(events : BBTimelineEvent[], ta : number, tb: number, intersect = false) : BBTimelineEvent[] {
         let results : BBTimelineEvent[] = [];
-        for (let i = lower; i < events.length; i++) {
-            let etime = this.beatToTime(events[i].event.time);
-            if (etime < earliestTime) {
+        for (let event of events) {
+            let eTimeA = this.beatToTime(event.event.time);
+            let eTimeB = eTimeA;
+            if (intersect && "duration" in event.event) {
+                let dev = event.event as BBDurationEvent;
+                eTimeB = this.beatToTime(dev.time + dev.duration);
+            }
+
+            if (eTimeB < ta) {
                 continue;
             }
-            if (etime > latestTime) {
+            if (eTimeA > tb) {
                 break;
             }
-            results.push(events[i]);
+
+            results.push(event);
         }
         return results;
     }
@@ -289,7 +293,7 @@ export class BBTimeLine  extends EventEmitter  {
         }
 
         if (modifyInPlace) {
-            sortTimelineEvents(this.timeControlEvents);
+            sortTimelineEventsRealBeat(this.timeControlEvents);
             for (let event of controls) {
                 newLatestFirstBeat = Math.min(newLatestFirstBeat, event.realbeat ?? 0);
                 newLatestFirstBeat = Math.min(newLatestFirstBeat, event.event.time);
@@ -300,8 +304,8 @@ export class BBTimeLine  extends EventEmitter  {
             this.latestFirstBeat = newLatestFirstBeat;
         }
 
-        sortTimelineEvents(preloadEvents);
-        sortTimelineEvents(realEvents);
+        sortTimelineEventsRealBeat(preloadEvents);
+        sortTimelineEventsRealBeat(realEvents);
 
         /* Preload events all execute immediately on the true initial beat */
         for (let event of preloadEvents) {
@@ -344,6 +348,13 @@ export class BBTimeLine  extends EventEmitter  {
         /* Add one final point to establish the last BPM determined. */
         let postAnchor = {b:(lastPoint.b+1), t:lastPoint.t+60/currentBPM, bpm:currentBPM};
         nmapping.push(postAnchor);
+
+        if (modifyInPlace) {
+            /* Accessors of staticEvents rely on the assumption it is always chrono-sorted.
+             * Guarantee this at all times.
+             */
+            sortTimelineEvents(this.staticEvents);
+        }
 
         return nmapping;
     }
