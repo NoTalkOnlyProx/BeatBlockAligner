@@ -1,10 +1,12 @@
 <script lang="ts">
+    import { getEventDescription, preventNavDrag } from "./UXUtils";
     import { onDestroy, onMount } from 'svelte';
     import { BBTimeLine, type BBTimelineEvent, type BBTimelinePreserveMode } from './BBTimeLine';
     import type {BBPlayEvent, BBSetBPMEvent, BBSetsBPMEvent} from './BBTypes';
     import OptionalNumber from './OptionalNumber.svelte';
     import { isScrollSpecial, pixelsToRel, relPixelsToRel, relToPixels, relToRelPixels } from './UXUtils';
     import { createEventDispatcher } from 'svelte';
+    import BbEventTooltip from './BBEventTooltip.svelte';
     const dispatch = createEventDispatcher();
 
     export let timeline : BBTimeLine;
@@ -276,16 +278,17 @@
     let mouseX = 0;
     let mouseY = 0;
     let mouseInside : boolean = false;
-    let tooltipX : string = "0px";
-    let tooltipY : string = "0px";
+    let tooltipX : number = 0;
+    let tooltipY : number = 0;
     function recomputeTooltip() {
         if (choosingEvent) {
             tooltipVisible = true;
             return;
         }
+
+        tooltipX = mouseX;
+        tooltipY = mouseY;
         
-        tooltipX = (mouseX + 20) + "px";
-        tooltipY = (mouseY) + "px";
         let tooltipTime = timeline.relToTime(pixelsToRel(mouseX, zoom, center));
 
         /* Anything within 30 pixels */
@@ -303,7 +306,7 @@
     function handleMouseMove(event: MouseEvent) {
         let crect = container.getBoundingClientRect();
         mouseX = event.clientX;
-        mouseY = event.clientY - crect.top;
+        mouseY = event.clientY;
         mouseInside = true;
         recomputeTooltip();
     }
@@ -338,19 +341,6 @@
 
     function getBeatX(beat : number) {
         return relToPixels(timeline.timeToRel(timeline.beatToTime(beat)), zoom, center);
-    }
-    
-    function preventNavDrag(event : MouseEvent) {
-        if (!isScrollSpecial(event)) {   
-            event.stopPropagation();
-        }
-    }
-
-    function getDescription(event : BBTimelineEvent) {
-        let type = event.event.type;
-        let bpm = (event.event as (BBSetsBPMEvent))?.bpm ?? null;
-        let bpmtext = (bpm===null) ? "":`(bpm->${bpm.toFixed(2)}) `
-        return `${type}: ${bpmtext}(ang: ${event.event.angle?.toFixed(1)})`;
     }
 
     function getControlBPM(selectedControl : BBTimelineEvent, timeline : BBTimeLine) {
@@ -599,7 +589,7 @@
             on:mousemove={mouseOverControl}
             style:left={`calc(${getControlX(selectedControl, timeline, zoom, center)}px + 6px)`}
         >
-            <div class="controlTitle">{getDescription(selectedControl)}</div>
+            <div class="controlTitle">{getEventDescription(selectedControl)}</div>
             {#if ["play", "setBPM"].includes(selectedControl.event.type)}
                 <div class="paramcont">
                     <OptionalNumber value={getControlBPM(selectedControl, timeline)} on:change={handleSetBPM}>BPM</OptionalNumber>
@@ -640,20 +630,11 @@
         </div>
     {/if}
     {#if tooltipVisible}
-        <!-- svelte-ignore a11y-no-static-element-interactions -->
-        <div
-            class="tooltip"
-            on:mousedown={preventNavDrag}
-            style:left={tooltipX} style:top={tooltipY}>
-            {#each tooltipEvents as event,i}
-                <button
-                    class="ttevent" class:bright={i%2==0} class:clickable={choosingEvent}
-                    on:click={(e)=>selectControl(event)}
-                >
-                    {getDescription(event)}
-                </button>
-            {/each}
-        </div>
+        <BbEventTooltip
+            bind:choosing={choosingEvent} bind:tooltipEvents bind:x={tooltipX} bind:y={tooltipY}
+            on:select={(e)=>{selectControl(e.detail)}}
+        >
+        </BbEventTooltip>
     {/if}
 </div>
 <style>
@@ -722,30 +703,5 @@
         background-color: var(--tooltip-color-bright);
         width:100%;
         white-space: nowrap;
-    }
-    .tooltip {
-        pointer-events: none;
-        position:absolute;
-        z-index: 70;
-        background-color: var(--tooltip-color);
-        border-color: var(--tooltip-border-color);
-        border-style: solid;
-        border-width: 1px;
-        padding:3px;
-    }
-    .ttevent { 
-        background-color: transparent;
-        border: none;
-        display: block;
-    }
-    .ttevent.bright {
-        background-color: var(--tooltip-color-bright);
-    }
-    .ttevent.clickable {
-        pointer-events: auto;
-    }
-
-    .ttevent.clickable:hover {
-        background-color: var(--tooltip-color-hover)
     }
 </style>

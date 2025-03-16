@@ -1,6 +1,7 @@
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
 import type { BBTimelineEvent } from "./BBTimeLine";
+import type { BBSetsBPMEvent } from './BBTypes';
 
 export function isScrollSpecial(event : MouseEvent, ignoreCtrl = false) {
     return event.button != 0 || (event.ctrlKey && !ignoreCtrl);
@@ -120,4 +121,17 @@ export async function downloadZipContaining(zipname : string, files : {name: str
     }
     let zipfile = await zip.generateAsync({ type: 'blob' });
     FileSaver.saveAs(zipfile, zipname)
+}
+
+export function preventNavDrag(event : MouseEvent) {
+    if (!isScrollSpecial(event)) {   
+        event.stopPropagation();
+    }
+}
+
+export function getEventDescription(event : BBTimelineEvent) {
+    let type = event.event.type;
+    let bpm = (event.event as (BBSetsBPMEvent))?.bpm ?? null;
+    let bpmtext = (bpm===null) ? "":`(bpm->${bpm.toFixed(2)}) `
+    return `${type}: ${bpmtext}(ang: ${event.event.angle?.toFixed(1)})`;
 }
