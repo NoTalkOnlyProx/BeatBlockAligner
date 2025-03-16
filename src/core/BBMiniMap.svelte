@@ -1,6 +1,5 @@
 <script lang="ts">
     import BbLevelEditor from "./BBLevelEditor.svelte";
-    import TimelineZone from "./TimelineZone.svelte";
     let dragging = false;
     let dragbase = 0;
     let centerbase = 0;
@@ -67,13 +66,13 @@
     on:mousemove={onDrag}
     class="minimapcontainer"
     >
-    <TimelineZone zoom={zoom} fixed style="height:100%">
+    <div class="tzdomain">
         <div
             class="zoombox"
             style:width={(100/zoom)+"%"}
             style:left={(center - 50/zoom) + "%"}
         ></div>
-    </TimelineZone>
+    </div>   
 </div>
 <style>
     .zoombox {
@@ -84,6 +83,7 @@
         border-style: solid;
         border-width: 3px;
         border-color: white;
+        position: absolute;
     }
     .minimapcontainer {
         background-color: #7e5180;
@@ -91,5 +91,14 @@
         height:100%;
         display:block;
         box-sizing: border-box;
+    }
+    .tzdomain {
+        left:0px;
+        width:100%;
+        height:100%;
+        position: relative;
+        display: block;
+        box-sizing: border-box;
+        overflow: hidden;
     }
 </style>

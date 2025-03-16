@@ -1,6 +1,5 @@
 <script lang="ts">
     import { Pane, Splitpanes } from 'svelte-splitpanes';
-    import TimelineZone from './TimelineZone.svelte';
     import BBMiniMap from './BBMiniMap.svelte';
     import { BBLevelLoader, type BBVariantFiles } from './BBLevelLoader';
     import { onMount, onDestroy } from 'svelte';
@@ -12,6 +11,7 @@
     import TimeSpaceMarkers from './TimeSpaceMarkers.svelte';
     import OptionalNumber from './OptionalNumber.svelte';
     import { relPixelsToRel, pixelsToRel } from '../utils/UXUtils';
+    import WaveformZone from './WaveformZone.svelte';
     export let bbll : BBLevelLoader;
     let maxzoom = 4000;
     let zoom = 0.75;
@@ -34,7 +34,6 @@
     let startBeatControl : OptionalNumber;
     let offsetControl : OptionalNumber;
     let lbControl : OptionalNumber;
-    let vwavs : VariantWaveforms;
     let showChartEvents : boolean = true;
     let showLevelEvents : boolean = true;
 
@@ -277,9 +276,6 @@
         e.stopPropagation();
     }
 
-    function handleClickTrackDrop(e : DragEvent) {
-        vwavs.handleClickTrackDrop(e);
-    }
     function handleDropPrevent(e : DragEvent) {
         e.preventDefault();
         e.stopPropagation();
@@ -398,13 +394,9 @@
         <Splitpanes class="panes" horizontal theme="bba-theme" style="flex-grow:1;min-height:0px">
             <Pane size={20}>
                 <div style="width:100%; height:100%"
-                    on:drop={handleClickTrackDrop} 
                     on:mousedown={onDragStart}
                 >
-                    <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
-                    <TimelineZone fast bind:center bind:zoom control style="width:100%; height:100%">
-                        <VariantWaveforms bind:zoom bind:this={vwavs} bind:timeline style="z-index:50"></VariantWaveforms>
-                    </TimelineZone>
+                    <WaveformZone bind:timeline bind:center bind:zoom></WaveformZone>
                 </div>
                 <div class="lanetitle">waveforms</div>
             </Pane>
@@ -424,7 +416,6 @@
             </Pane>
             <Pane>
                 <div style="width:100%; height:100%"
-                    on:drop={handleClickTrackDrop} 
                     on:mousedown={onDragStart}
                 >
                     <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
@@ -600,5 +591,19 @@
         height: 100%;
         text-wrap: nowrap;
         text-align: center;
+    }
+    .tzcontainer {
+        overflow: auto;
+        display: block;
+        overflow-x: hidden;
+        box-sizing: border-box;
+    }
+    .tzdomain {
+        transform-origin: top left;
+        position: relative;
+        display: block;
+        container-name: timeline;
+        container-type: inline-size;
+        box-sizing: border-box;
     }
 </style>
