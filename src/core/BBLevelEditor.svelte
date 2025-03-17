@@ -300,18 +300,21 @@
             <div class="modezone">
                 <div class="moderadio">
                     <button
+                        Title={"Edits preserve times"}
                         class="moderadiobutton timer"
                         class:active={preserveMode==="KeepTimes"}
                         on:click={()=>{preserveMode="KeepTimes"}}
                     >
                     </button>
                     <button
+                        Title={"Edits preserve times after next marker"}
                         class="moderadiobutton timerbeat"
                         class:active={preserveMode==="KeepTimesAfter"}
                         on:click={()=>{preserveMode="KeepTimesAfter"}}
                     >
                     </button>
                     <button
+                        Title={"Edits preserve beats"}
                         class="moderadiobutton beat"
                         class:active={preserveMode==="KeepBeats"}
                         on:click={()=>{preserveMode="KeepBeats"}}
@@ -321,6 +324,7 @@
                 
                 <div class="moderadio">
                     <button
+                        Title={snapToBeatSetting?"Disable snapping":"Enable Snapping"}
                         class="snapbutton" class:active={snapToBeat}
                         on:click={()=>{snapToBeatSetting = !snapToBeatSetting}}
                     >
