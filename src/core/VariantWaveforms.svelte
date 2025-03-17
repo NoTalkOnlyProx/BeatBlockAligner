@@ -91,7 +91,7 @@
                 data={soundInfo(timeline, tle).soundData}
                 shown={!(tle.skipped)}
             >
-                <div class="wavetitle">{soundInfo(timeline, tle).soundFileName}</div>
+                <div class="wavetitle"><div class="titletext">{soundInfo(timeline, tle).soundFileName}</div></div>
             </Waveform>
             {#if soundInfo(timeline, tle).clickTracks.length > 0}
                 {#each soundInfo(timeline, tle).clickTracks as ct, i}
@@ -100,7 +100,7 @@
                         length={mapRelativeLength(timeline, tle, ct, zoom)}
                         data={ct}>
                         <div class="wavetitle">
-                            {ct.filename}
+                            <div class="titletext">{ct.filename}</div>
                             <button
                                 class="wavebutton del"
                                 on:click={(e)=>deleteClickTrack(e, tle, i)}
@@ -123,6 +123,7 @@
         background-color: rgba(0, 0, 0, 0.425);
         display: flex;
         gap: 10px;
+        text-wrap: nowrap;
     }
 
     .wavebutton {
@@ -135,5 +136,8 @@
         border: none;
         display: block;
         pointer-events: auto;
+    }
+    .titletext {
+        max-width: 50vw;
     }
 </style>
