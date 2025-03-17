@@ -55,7 +55,7 @@
                 <div class="credhead">Source Code:</div> <div class="credend"><a href="https://github.com/NoTalkOnlyProx/BeatBlockAligner">On github</a></div>
             </div>
             <div class="creditline">
-                <div class="credhead">Programming:</div><div class="credend">NTOP: (<a href="https://bsky.app/profile/notalkonlyprox.bsky.social">BlueSky</a>, <a href="https://soundcloud.com/notalkonlyprox"><img style="height:1em;" src="/dist/assets/soundcloud4.svg" alt="soundcloud"/></a>)</div> 
+                <div class="credhead">Programming:</div><div class="credend">NTOP: (<a href="https://bsky.app/profile/notalkonlyprox.bsky.social">BlueSky</a>, <a href="https://soundcloud.com/notalkonlyprox"><span class="sc">soundcloud</span></a>)</div> 
             </div>
             <div class="creditline">
                 <div class="credhead">Testing & Custom Icons:</div><div class="credend">Monkeygogobeans</div>
@@ -102,7 +102,7 @@
         Source Code
     </button>
     <button on:click={showCreditsSC}>
-        <div>Want to support me? Check out my <img style="height:1em;" src="/dist/assets/soundcloud4.svg" alt="soundcloud"/></div>
+        <div>Want to support me? Check out my <span class="sc">soundcloud</span></div>
     </button>
 </div>
 
@@ -157,6 +157,12 @@
     a:hover {
         color: var(--highlight-text-color-hover);
     }
+    a > .sc {
+        background-color: var(--main-text-color);
+    }
+    a > .sc:hover {
+        background-color: var(--highlight-text-color-hover);
+    }
     .acknowledge {
         font-size: 2vw;
         padding: 0.5vw;
@@ -170,6 +176,16 @@
     }
     button:active {
         background-color: var(--main-input-bg-active);
+    }
+    .sc {
+        height: 1em;
+        width: 8.888em;
+        mask-image: url(/dist/assets/soundcloud5.svg);
+        color: transparent;
+        background-color: white;
+        display:inline-block;
+        position:relative;
+        top:0.07em;
     }
 
     </style>
