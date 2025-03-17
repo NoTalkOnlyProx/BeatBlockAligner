@@ -343,6 +343,11 @@
         if (tooltipEvents.length == 1 &&  tooltipEvents[0] == selectedControl) {
             tooltipVisible = false;
         }
+
+        /* Don't show the tooltip if mouse isn't inside this region */
+        if (!mouseInside) {
+            tooltipVisible = false;
+        }
     }
     function handleMouseMove(event: MouseEvent) {
         mouseX = event.clientX;
@@ -355,11 +360,11 @@
         mouseInside = false;
     }
     function handleMouseExit(event: MouseEvent) {
-        if (choosingEvent) {
-            return;
-        }
-        tooltipVisible = false;
         mouseInside = false;
+        
+        if (!choosingEvent) {
+            tooltipVisible = false;
+        }
     }
 
     function beatToTI(beat : number) {

@@ -23,7 +23,7 @@
     export let snapToBeat = false;
     export let beatGrid : number = 4;
 
-    
+    let mouseInside = false;
     let tooltipVisible = false;
     let tooltipEvents : BBTimelineEvent[];
     let tooltipX : number = 0;
@@ -506,9 +506,15 @@
         );
 
         tooltipVisible = tooltipEvents.length > 0;
+
+        /* Don't show the tooltip if mouse isn't inside this region */
+        if (!mouseInside) {
+            tooltipVisible = false;
+        }
     }
 
     export function handleMouseMove(event : MouseEvent) {
+        mouseInside = true;
         if (selecting) { 
             onSelectContinue(event);
         } else {
@@ -516,6 +522,10 @@
             tooltipY = event.clientY;
             recomputeTooltip();
         }
+    }
+    function handleMouseExit(event: MouseEvent) {
+        tooltipVisible = false;
+        mouseInside = false;
     }
 
     export function onSelectContinue(event : MouseEvent) {
@@ -808,6 +818,7 @@
     <div class="eventzone"
         on:mousedown={onSelectStart}
         on:mousemove={handleMouseMove}
+        on:mouseleave={handleMouseExit}
         on:mouseup={onSelectFinish}
     >
         <canvas class="drawzone" bind:this={cv}></canvas>
