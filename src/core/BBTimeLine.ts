@@ -826,27 +826,41 @@ export class BBTimeLine  extends EventEmitter  {
         }
 
         /* First, we need to apply snap if applicable */
-        if (opstate.snap && opstate.pmode == "KeepTimesAfter" && newBPM != null) {
+        if (opstate.snap && ["KeepTimesAfter", "KeepTimes"].includes(opstate.pmode) && newBPM != null) {
             /* The goal is to pick a BPM that preserves the beat offset for the subsequent event. */
             if (nextEvent) {
-                /* In essence, we want a BPM that phase-shifts the beat by 1/snapGrid over the
-                 * duration of the period.
-                 * Speaking mathematically, we seek:
-                 *      ((dt * bpm/60) * snapGrid) - phaseshift = n (where n is some integer)
-                 *
-                 * Rounding that expression will give the closest n,
-                 * then solve that for BPM.
+                /* Snapping seeks to align the BPM so that one of the
+                 * produced ticks aligns perfectly with the next time control event.
                  * 
-                 * bpm = ((n + phaseshift) / snapGrid * 60)/dt
+                 * We do this by selecting a BPM whose tick delta is an integer number of ticks,
+                 * plus a correction factor.
                  * 
+                 * The correction factor is selected so that it cancels out any tick-residual
+                 * (sub-snap-scale beat offset) of the entry control.
                  */
-                let currentTime = opstate.controlInitialState!.originalTime;
+                let entryResidual = ((opstate.controlInitialState?.originalBeat ?? 0) * snapGrid) % 1.0;
+                let tickDeltaCorrection = 1.0 - entryResidual;
+
+                /* Original time delta between the control and the next event -- we use this
+                 * to convert between BPMs and tick deltas.
+                 */
+                let ctrlTime = opstate.controlInitialState!.originalTime;
                 let nextTime = nextEvent.originalTime;
-                let dt = nextTime - currentTime;
-                let originalTickDelta = dt * opstate.controlInitialState!.originalBPM!/60 * snapGrid;
-                let originalPhaseShift = originalTickDelta%1.0;
+                let dt = nextTime - ctrlTime;
+
+                /* In a previous version of this, we aligned to the ORIGINAL tick delta
+                 * phase offset. I am keeping this code in case I decide to use it again.
+                 */
+                //let originalTickDelta = dt * opstate.controlInitialState!.originalBPM!/60 * snapGrid;
+                //let originalPhaseShift = originalTickDelta%1.0;
+
+                /* Compute the requested tick-delta from the requested BPM */
                 let tickDelta = dt * newBPM/60 * snapGrid;
-                let quantizedTickDelta = Math.round(tickDelta) + originalPhaseShift;
+
+                /* Now, snap this tick-Delta to a delta that cancels the entry residual */
+                let quantizedTickDelta = Math.round(tickDelta - tickDeltaCorrection) + tickDeltaCorrection;
+
+                /* Convert to equivalent BPM, apply. */
                 let quantizedBPM = quantizedTickDelta * 60 / (snapGrid * dt);
                 newBPM = quantizedBPM;
             }
