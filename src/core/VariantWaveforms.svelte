@@ -17,7 +17,7 @@
     function startTime(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
         let scheduledTime = timeline.beatToTime(tle.realbeat ?? (tle.event.time ?? 0));
         /* This offset setting is measured actually a playback time offset, go figure!  */
-        let trueTime = scheduledTime + ((tle.event as BBPlayEvent).offset ?? 0);
+        let trueTime = scheduledTime - ((tle.event as BBPlayEvent).offset ?? 0);
         return trueTime;
     }
     function mapStart(timeline : BBTimeLine, tle : BBTimelineEvent, zoom : number) : number {
