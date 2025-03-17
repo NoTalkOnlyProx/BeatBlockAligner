@@ -599,6 +599,7 @@
         co = true;
         coTime = (draggingLeft ? lHandleTime : rHandleTime);
         event.preventDefault();
+        event.stopPropagation();
         dispatch("interacted");
         console.log("START DRAG");
     }

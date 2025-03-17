@@ -41,7 +41,10 @@
     }
 
     function deselectControl(e : MouseEvent) {
-        console.log("Deselected!");
+        if (clickCancelled || isScrollSpecial(e)) {
+            return;
+        }
+
         selectedControl = null;
         choosingEvent = false;
         selectedTI = null;
@@ -50,6 +53,9 @@
     }
 
     function deleteControl(e : MouseEvent) {
+        if (clickCancelled || isScrollSpecial(e)) {
+            return;
+        }
         if (!selectedControl) {
             return;
         }
@@ -134,11 +140,17 @@
 
     //NTOPHere
     function insertTI(e : MouseEvent) {
+        if (clickCancelled || isScrollSpecial(e)) {
+            return;
+        }
         insertAtBeat(tiToBeat(selectedTI ?? 0));
         e.stopPropagation();
     }
 
     function deselectTI(e : MouseEvent) {
+        if (clickCancelled || isScrollSpecial(e)) {
+            return;
+        }
         selectedTI = null;
         e.stopPropagation();
     }
@@ -152,6 +164,7 @@
         dragInitialTime = mouseToTime(event.clientX);
         co = true;
         event.preventDefault();
+        event.stopPropagation();
         dispatch("interacted");
         console.log("START DRAG");
     }
@@ -415,8 +428,6 @@
         coTime = timeline.beatToTime(selectedControl!.event.time);
         timeline.beginTSMoveOperation(selectedControl!, preserveMode, snapToBeat, beatGrid, mustSave);
         startDrag(event);
-        event.preventDefault();
-        event.stopPropagation();
     }
 
     function startDragBeat(event : MouseEvent) {
