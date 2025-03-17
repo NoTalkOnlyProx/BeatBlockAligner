@@ -179,8 +179,7 @@
     let rightmostTick = 0;
     let leftmostTick = 0;
     function computeTickSpace() {
-        let trueStart = timeline.startTimes?.trueFirstBeat ?? 0;
-        zeroBeat = Math.floor(Math.min(trueStart, timeline.firstBeat));
+        zeroBeat = timeline.startTimes?.trueFirstBeat ?? 0;
         let leftmostBeat = Math.floor(Math.min(zeroBeat, timeline.latestFirstBeat));
         let rightmostBeat = Math.ceil(Math.max(timeline.lastBeat, timeline.latestLastBeat));
         rightmostTick = Math.ceil((rightmostBeat - zeroBeat) * beatGrid);
@@ -212,14 +211,28 @@
     function renderBeatTicks(ctx : CanvasRenderingContext2D) {
         let nearTI = beatToTI(timeline.timeToBeat(mouseToTime(mouseX)));
         let canSelectTick = TISelectable(nearTI) && tooltipEvents.length == 0;
+
+
+        let lastTickX = -100;
+
         for (let ti = leftmostTick; ti <= rightmostTick; ti++) {
             let tickX = getTickX(ti, timeline, zoom, center);
+
+            /* For performance reasons, skip rendering ticks that are closer than 0.25 pixels
+             * together */
+            if (tickX - lastTickX < 0.25 && selectedTI !== ti) {
+                continue;
+            }
+
+            lastTickX = tickX;
+
             renderTick(ctx, tickX, {
                 color:"#ACACAC",
                 hoverColor: "#FFFFFF",
                 hover : mouseInside && canSelectTick && ti == nearTI,
                 selected : (selectedTI === ti),
-                recommended : TIRecommended(ti)
+                recommended : TIRecommended(ti),
+                prime: (ti % beatGrid) == 0
             });
         }
 
@@ -252,6 +265,7 @@
         color? : string,
         hoverColor? : string,
         recommended? : boolean,
+        prime? : boolean,
     }
 
     function renderTick(ctx : CanvasRenderingContext2D, x : number, params : TickParams = {}) {
@@ -274,6 +288,15 @@
         ctx.moveTo(x + ofs, 0);
         ctx.lineTo(x + ofs, height);
         ctx.stroke();
+
+        if (params.prime) {
+            ctx.beginPath();
+            ctx.lineWidth = 8;
+            ctx.strokeStyle = color;
+            ctx.moveTo(x + 4, 0);
+            ctx.lineTo(x + 4, 7);
+            ctx.stroke();
+        }
     }
 
     $: zoom, center, selectedTI, selectedControl, choosingEvent, recomputeTooltip();

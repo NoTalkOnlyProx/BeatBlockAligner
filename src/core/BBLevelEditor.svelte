@@ -399,7 +399,7 @@
                 <div style="width:100%; height:100%"
                     on:mousedown={onDragStart}
                 >
-                    <WaveformZone bind:timeline bind:center bind:zoom></WaveformZone>
+                    <WaveformZone bind:beatGrid bind:timeline bind:center bind:zoom></WaveformZone>
                 </div>
                 <div class="lanetitle">waveforms</div>
             </Pane>
@@ -421,7 +421,7 @@
                 <div style="width:100%; height:100%"
                     on:mousedown={onDragStart}
                 >
-                    <TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
+                    <TimeSpaceMarkers bind:beatGrid bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
                     <EventEditor
                         bind:beatGrid bind:preserveMode bind:snapToBeat
                         bind:co bind:coTime bind:showLevelEvents bind:showChartEvents

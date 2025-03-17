@@ -5,6 +5,7 @@
     export let timeline : BBTimeLine;
     export let zoom = 0;
     export let center = 0;
+    export let beatGrid : number;
 
     let cv : HTMLCanvasElement;
     onMount(() => {
@@ -26,10 +27,10 @@
         let rightBeat = timeline.timeToBeat(timeline.relToTime(rightTimeRel));
 
         /* Pick a power of two that results in 100 or fewer ticks visible. */
-        let beatsVisible = rightBeat - leftBeat;
+        let ticksVisible = (rightBeat - leftBeat) * beatGrid;
         /* Quantized to a power of two */
-        let tickUnit = Math.pow(2, -Math.ceil(Math.log2(100/beatsVisible)));
-        tickUnit = Math.max(0.125, tickUnit);
+        let tickPower = Math.max(-1, -Math.ceil(Math.log2(100/ticksVisible)));
+        let tickUnit = Math.pow(2, tickPower)/beatGrid;
 
         let beatsShown = Math.ceil((rightBeat - leftBeat)/tickUnit);
         let firstBeatShown = Math.floor((leftBeat/tickUnit)) * tickUnit;

@@ -6,6 +6,7 @@
     export let zoom = 0;
     export let center = 0;
     export let timeline : BBTimeLine;
+    export let beatGrid : number;
     
     let vwavs : VariantWaveforms;
 
@@ -18,7 +19,7 @@
         e.preventDefault();
     }
 </script>
-<TimeSpaceMarkers bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
+<TimeSpaceMarkers bind:beatGrid bind:zoom bind:center bind:timeline></TimeSpaceMarkers>
 <!-- svelte-ignore a11y-no-static-element-interactions -->
 <div
     class="tzcontainer"
