@@ -828,12 +828,12 @@
             style:left={timeToHandleX(lHandleTime, timeline, zoom, center) + "px"}
         >
             <div class="buttonzone left">
-                <button on:mousedown={startMoveLeft}>Move</button>
-                <button on:mousedown={startStretchLeft}>Stretch</button>
+                <button on:mousedown={startMoveLeft} class="move">Move</button>
+                <button on:mousedown={startStretchLeft} class="stretch">Stretch</button>
             </div>
             <div class="buttonzone bottom left">
                 <button  on:mousedown={startAdjustLeft}>Adjust</button>
-                <button on:click={selectAllBetween}>All</button>
+                <button on:click={selectAllBetween} class="spec">All</button>
             </div>
             <div class = "line"></div>
         </div>
@@ -844,12 +844,12 @@
             style:left={timeToHandleX(rHandleTime, timeline, zoom, center) + "px"}
         >
             <div class="buttonzone">
-                <button on:mousedown={startMoveRight}>Move</button>
-                <button on:mousedown={startStretchRight} >Stretch</button>
+                <button on:mousedown={startMoveRight} class="move">Move</button>
+                <button on:mousedown={startStretchRight} class="stretch">Stretch</button>
             </div>
             <div class="buttonzone bottom">
-                <button  on:mousedown={startAdjustRight}>Adjust</button>
-                <button on:click={quantizeSelected}>Quantize</button>
+                <button  on:mousedown={startAdjustRight} class="adjust">Adjust</button>
+                <button on:click={quantizeSelected} class="spec">Quantize</button>
             </div>
             <div class = "line"></div>
         </div>

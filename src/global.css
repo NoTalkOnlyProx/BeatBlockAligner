@@ -42,16 +42,31 @@ html, body, #root {
 .move:hover {
     background-color: #c8fff7;
 }
+
+.stretch {
+    background-color: #9a28e6;
+}
+.stretch:hover {
+    background-color: #efc8ff;
+}
+
+.adjust {
+    background-color: #dbdbdb;
+}
+.adjust:hover {
+    background-color: #ffffff;
+}
+
 .del {
     background-color: #f00;
 }
 .del:hover {
     background-color: rgb(255, 114, 114);
 }
-.dup {
+.dup, .spec {
     background-color: #ff00a7;
 }
-.dup:hover {
+.dup:hover, .spec:hover {
     background-color: #ff94d9;
 }
 .desel {

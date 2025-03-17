@@ -647,7 +647,7 @@
         >
             <div class="controlTitle">Tick {selectedTI}</div>
             <div class="buttonzone">
-                <button class="move" on:mousedown={startDragBeat}>Stretch</button>
+                <button class="stretch" on:mousedown={startDragBeat}>Stretch</button>
                 <button class="dup" on:click={insertTI}>Insert</button>
                 <button class="desel" on:click={deselectTI}>Deselect</button>
             </div>
