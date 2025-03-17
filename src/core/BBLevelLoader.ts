@@ -1,7 +1,7 @@
 import type { LODAudioData } from "src/utils/SoundUtils";
 import type { BBTimelineEvent } from "./BBTimeLine";
 import type { BBChart, BBLevel, BBManifest, BBPlayEvent, BBShowResultsEvent, BBVariant } from "./BBTypes";
-import { loadAudioFile, readFile, sanePath } from "src/utils/FileUtils";
+import { loadAudioFile, readFile } from "src/utils/FileUtils";
 import { downloadTextFile, downloadZipContaining } from "../utils/UXUtils";
 
 const SupportedVersions = [14];
@@ -138,7 +138,7 @@ export class BBLevelLoader {
         let basePath = "";
         for (let file of files) {
             console.log("Scanning file: ", file.fullPath);
-            let sp = sanePath(file.fullPath);
+            let sp = file.fullPath;
             let matches = sp.match(/(.*)manifest\.json$/);
             if (matches) {
                 basePath = matches[1];
@@ -170,9 +170,12 @@ export class BBLevelLoader {
             let levelFile = undefined;
             let chartFile = undefined;
 
+            console.log("hmm?");
+
             /* Find level.json */
             for (let file of levelFiles) {
-                if (sanePath(file.fullPath) === basePath + levelFileName) {
+                console.log("eh?", file.fullPath, basePath + levelFileName);
+                if (file.fullPath === basePath + levelFileName) {
                     levelFile = file;
                     break;
                 }
@@ -186,7 +189,7 @@ export class BBLevelLoader {
 
             /* Find chart.json */
             for (let file of levelFiles) {
-                if (sanePath(file.fullPath) === basePath + chartFileName) {
+                if (file.fullPath === basePath + chartFileName) {
                     chartFile = file;
                     break;
                 }
@@ -211,7 +214,7 @@ export class BBLevelLoader {
                     let soundFile = undefined;
                     let soundFileName = event.file;
                     for (let file of levelFiles) {
-                        if (sanePath(file.fullPath) === basePath + soundFileName) {
+                        if (file.fullPath === basePath + soundFileName) {
                             soundFile = file;
                             break;
                         }
