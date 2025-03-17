@@ -10,6 +10,9 @@
     import BbEventTooltip from './BBEventTooltip.svelte';
     const dispatch = createEventDispatcher();
 
+    /* any to shut up typescript complaining about us checking if undefined is in the array */
+    const bpmSetters : any[] = ["play", "setBPM"];
+
     export let timeline : BBTimeLine;
     export let zoom : number;
     export let center : number;
@@ -637,7 +640,7 @@
             {/if}
             <div class="buttonzone">
                 <button class="move" on:mousedown={startDragControl}>Move</button>
-                {#if ["play", "setBPM"].includes(selectedControl.event.type)}
+                {#if bpmSetters.includes(selectedControl.event.type)}
                     <button class="del" on:click={deleteControl}>Delete</button>
                     {#if selectedControl.event.type === "play"}
                         <button class="dup" on:mousedown={startDragControlSplit}>Split</button>
@@ -658,9 +661,13 @@
         >
             <div class="controlTitle">Tick {selectedTI}</div>
             <div class="buttonzone">
+                
+            {#if bpmSetters.includes(selectedControl?.event?.type)}
                 <button class="stretch" on:mousedown={startDragBeat}>Stretch</button>
-                <button class="dup" on:click={insertTI}>Insert</button>
-                <button class="desel" on:click={deselectTI}>Deselect</button>
+            {/if}
+
+            <button class="dup" on:click={insertTI}>Insert</button>
+            <button class="desel" on:click={deselectTI}>Deselect</button>
             </div>
         </div>
     {/if}
