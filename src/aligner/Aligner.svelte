@@ -37,13 +37,15 @@
         warning = false;
     }
 
-    function showCreditsSC() {
-        showCredits();
+    function openSoundcloud() {
         window.open("https://soundcloud.com/notalkonlyprox", '_blank')?.focus();
     }
 
-    function showCreditsSource() {
-        showCredits();
+    function openSpotify() {
+        window.open("https://open.spotify.com/artist/2FRKdeiqUtwq78MrJpPiIi?si=JJP_WFi8SlG9L9lKLr4UvA", '_blank')?.focus();
+    }
+
+    function openSource() {
         window.open("https://github.com/NoTalkOnlyProx/BeatBlockAligner", '_blank')?.focus();
     }
 
@@ -55,7 +57,10 @@
                 <div class="credhead">Source Code:</div> <div class="credend"><a href="https://github.com/NoTalkOnlyProx/BeatBlockAligner">On github</a></div>
             </div>
             <div class="creditline">
-                <div class="credhead">Programming:</div><div class="credend">NTOP: (<a href="https://bsky.app/profile/notalkonlyprox.bsky.social">BlueSky</a>, <a href="https://soundcloud.com/notalkonlyprox"><span class="sc">soundcloud</span></a>)</div> 
+                <div class="credhead">Programming:</div><div class="credend">NTOP:
+                    (<a href="https://bsky.app/profile/notalkonlyprox.bsky.social">BlueSky</a>, 
+                    <a href="https://soundcloud.com/notalkonlyprox"><span class="sc logo">soundcloud</span></a>,
+                    <a href="https://open.spotify.com/artist/2FRKdeiqUtwq78MrJpPiIi?si=JJP_WFi8SlG9L9lKLr4UvA"><span class="spot logo">Spotify</span></a>)</div> 
             </div>
             <div class="creditline">
                 <div class="credhead">Testing & Custom Icons:</div><div class="credend">Monkeygogobeans</div>
@@ -98,11 +103,14 @@
     <button on:click={showCredits}>
         Credits
     </button>
-    <button on:click={showCreditsSource}>
+    <button on:click={openSource}>
         Source Code
     </button>
-    <button on:click={showCreditsSC}>
-        <div>Want to support me? Check out my <span class="sc">soundcloud</span></div>
+    <button on:click={openSoundcloud}>
+        <div>Want to support me? Check out my <span class="sc logo">soundcloud</span></div>
+    </button>
+    <button on:click={openSpotify}>
+        <div>or my <span class="spot logo">Spotify</span></div>
     </button>
 </div>
 
@@ -141,6 +149,8 @@
         bottom: 0px;
         box-sizing: border-box;
         pointer-events: none;
+        display: flex;
+        align-items: start;
     }
     .center {
         display: flex;
@@ -157,10 +167,10 @@
     a:hover {
         color: var(--highlight-text-color-hover);
     }
-    a > .sc {
+    a > .logo {
         background-color: var(--main-text-color);
     }
-    a > .sc:hover {
+    a > .logo:hover {
         background-color: var(--highlight-text-color-hover);
     }
     .acknowledge {
@@ -177,15 +187,23 @@
     button:active {
         background-color: var(--main-input-bg-active);
     }
-    .sc {
-        height: 1em;
-        width: 8.888em;
-        mask-image: url(/dist/assets/soundcloud5.svg);
+    .logo {
         color: transparent;
         background-color: white;
         display:inline-block;
         position:relative;
+    }
+    .sc {
+        height: 1em;
+        width: 8.4166em;
+        mask-image: url(/dist/assets/soundcloud5.svg);
         top:0.07em;
+    }
+    .spot {
+        height: 1em;
+        width: 4.0444em;
+        mask-image: url(/dist/assets/spotify.svg);
+        top: 0.09em;
     }
 
     </style>
