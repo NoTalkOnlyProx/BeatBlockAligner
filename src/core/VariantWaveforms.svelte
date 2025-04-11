@@ -11,25 +11,14 @@
     export let timeline : BBTimeLine;
     export let zoom : number;
 
-    /* not incredibly efficient, but it hardly matters, and it's functional so svelte handles it
-     * nicely.
-     */
-    function startTime(timeline : BBTimeLine, tle : BBTimelineEvent) : number {
-        let scheduledTime = timeline.beatToTime(tle.realbeat ?? (tle.event.time ?? 0));
-        /* This offset setting is measured actually a playback time offset, go figure!  */
-        let trueTime = scheduledTime - ((tle.event as BBPlayEvent).offset ?? 0);
-        return trueTime;
-    }
     function mapStart(timeline : BBTimeLine, tle : BBTimelineEvent, zoom : number) : number {
-        return relToRelPixels(timeline.timeToRel(startTime(timeline, tle)), zoom);
+        return relToRelPixels(timeline.timeToRel(timeline.getPlayTimes(tle).start), zoom);
     }
     function soundInfo(timeline : BBTimeLine, tle : BBTimelineEvent) : BBSoundFile {
         return timeline.variant.sounds.get((tle.event as BBPlayEvent).file)!;
     }
     function mapLength(timeline : BBTimeLine, tle : BBTimelineEvent, zoom : number) : number {
-        let start = startTime(timeline, tle);
-        let sound = soundInfo(timeline, tle);
-        let end = start + sound.soundData.duration;
+        let {start, end} = timeline.getPlayTimes(tle);
         let startRel = timeline.timeToRel(start);
         let endRel = timeline.timeToRel(end);
         let drel = endRel - startRel;

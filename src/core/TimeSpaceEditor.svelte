@@ -229,18 +229,21 @@
         let canSelectTick = TISelectable(nearTI) && tooltipEvents.length == 0;
 
 
-        let lastTickX = -100;
+        let nextDrawableTick = -100;
 
-        for (let ti = leftmostTick; ti <= rightmostTick; ti++) {
-            let tickX = getTickX(ti, timeline, zoom, center);
 
+        let leftTick = Math.max(getXTick(0) - 1, leftmostTick);
+        let rightTick = Math.min(getXTick(window.innerWidth) + 1, rightmostTick);
+
+        for (let ti = leftTick; ti <= rightTick; ti++) {
             /* For performance reasons, skip rendering ticks that are closer than 0.25 pixels
              * together */
-            if (tickX - lastTickX < 0.25 && selectedTI !== ti) {
+            if (ti < nextDrawableTick && selectedTI !== ti) {
                 continue;
             }
 
-            lastTickX = tickX;
+            let tickX = getTickX(ti, timeline, zoom, center);
+            nextDrawableTick = getXTick(tickX + 0.25);
 
             renderTick(ctx, tickX, {
                 color:"#ACACAC",
@@ -382,6 +385,14 @@
 
     function getTickX(ti : number, timeline : BBTimeLine, zoom : number, center : number) {
         return getBeatX(tiToBeat(ti));
+    }
+
+    function getXTick(x : number) {
+        return beatToTI(getXBeat(x));
+    }
+
+    function getXBeat(x: number) {
+        return timeline.timeToBeat(timeline.relToTime(pixelsToRel(x, zoom, center)));
     }
 
     function getBeatX(beat : number) {

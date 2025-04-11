@@ -149,6 +149,7 @@ export class BBTimeLine  extends EventEmitter  {
     lastBeat : number = 0;
     firstTime : number = 0;
     lastTime : number = 0;
+    lastSound : number = 0;
 
     constructor(variant : BBVariantFiles) {
         super();
@@ -184,9 +185,31 @@ export class BBTimeLine  extends EventEmitter  {
             this.registerEvent(event, true, computeBoundaries);
         }
 
+        /* Compute timespace mapping */
         this.recomputeTimeSpace();
 
+        /* Finally, clamp the "finalBeat" to a sane value, relative to the chart audio */
+        this.clampFinalBeatToSound();
+
         console.log("Finished loading BBTimeLine", this);
+    }
+
+    clampFinalBeatToSound() {
+        /* Determine the final sound time */
+        for (let tle of this.timeControlEvents) {
+            if (tle.event.type === "play") {
+                this.lastSound = Math.max(this.lastSound, this.getPlayTimes(tle).end);
+            }
+        }
+        this.lastBeat = Math.min(this.lastBeat, this.timeToBeat(this.lastSound * 2));
+    }
+
+    getPlayTimes(tle : BBTimelineEvent) {
+        let scheduledTime = this.beatToTime(tle.realbeat ?? (tle.event.time ?? 0));
+        let start = scheduledTime - ((tle.event as BBPlayEvent).offset ?? 0);
+        let sound = this.variant.sounds.get((tle.event as BBPlayEvent).file)!;
+        let end = start + sound.soundData.duration;
+        return {start, end};
     }
 
     getControlAfter(event : BBTimelineEvent | undefined | null) {
@@ -1121,26 +1144,19 @@ export class BBTimeLine  extends EventEmitter  {
         }
 
         /* We only want to compute the boundaries on the very first run, after that keep them consistent
-             * soas not to mess with the user's zoom, etc. They don't actually matter, they just establish
-             * the definition of `zoom=1`.
-             */
+        * soas not to mess with the user's zoom, etc. They don't actually matter, they just establish
+        * the definition of `zoom=1`.
+        */
         if (computeBoundaries) {
-            if (event.time < this.firstBeat) {
-                this.firstBeat = event.time;
-            }
-            if (event.time > this.lastBeat) {
-                this.lastBeat = event.time;
-            }
+            this.firstBeat = Math.min(this.firstBeat, event.time);
+            this.lastBeat = Math.max(this.lastBeat, event.time);
             let duration = (event as BBDurationEvent).duration;
             if (duration) {
                 let finalTime = event.time + duration;
-                if (finalTime < this.firstBeat) {
-                    this.firstBeat = finalTime;
-                }
+
                 /* Yes, negative durations are possible. */
-                if (finalTime > this.lastBeat) {
-                    this.lastBeat = finalTime;
-                }
+                this.firstBeat = Math.min(this.firstBeat, finalTime);
+                this.lastBeat = Math.max(this.lastBeat, finalTime);
             }
         }
 
