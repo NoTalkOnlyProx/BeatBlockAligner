@@ -196,13 +196,13 @@
     .sc {
         height: 1em;
         width: 8.4166em;
-        mask-image: url(/dist/assets/soundcloud5.svg);
+        mask-image: url(./assets/soundcloud5.svg);
         top:0.07em;
     }
     .spot {
         height: 1em;
         width: 4.0444em;
-        mask-image: url(/dist/assets/spotify.svg);
+        mask-image: url(./assets/spotify.svg);
         top: 0.09em;
     }
 
