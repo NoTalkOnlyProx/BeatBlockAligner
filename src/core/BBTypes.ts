@@ -1,5 +1,8 @@
 /* Top level structure types */
 export interface BBManifest {
+    properties: {
+        formatversion: number,
+    }
     metadata : BBMetadata;
     defaultVariant? : string;
     variants?: BBVariant[];
@@ -8,11 +11,13 @@ export interface BBManifest {
 export interface BBMetadata {
     songName?: string;
     artist?: string;
+    charter?: string;
     bpm? : number;
     bgData?: BBBGData;
     bg? : boolean;
     description? : string;
     artistLink? : string;
+    difficulty: number;
 }
 
 export interface BBVariant {
@@ -36,7 +41,7 @@ export interface BBBGData {
 export interface BBLevel {
     properties: {
         formatversion: number,
-        offset?: number,         //VOI
+        offset: number,          //VOI
         speed?: number,          
         startingBeat?: number,   //VOI
         loadBeat?: number,       //VOI

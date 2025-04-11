@@ -369,7 +369,7 @@
                     <OptionalNumber value={timeline.getStartBeat()} bind:this={startBeatControl} on:change={handleSBChange}>Song start beat</OptionalNumber>
                 </div>
                 <div>
-                    <OptionalNumber value={timeline.getOffset()} bind:this={offsetControl} on:change={handleOFSChange}>Beat load offset</OptionalNumber>
+                    <OptionalNumber always value={timeline.getOffset()} bind:this={offsetControl} on:change={handleOFSChange}>Beat load offset</OptionalNumber>
                 </div>
                 <div>
                     <OptionalNumber value={timeline.getLoadBeat()} bind:this={lbControl} on:change={handleLBChange}>Song load beat</OptionalNumber>

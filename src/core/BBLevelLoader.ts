@@ -30,11 +30,15 @@ export class BBLevelLoader {
     manifest : BBManifest | undefined;
     variants : BBVariantFiles[] = [];
     basename : string = "beatblock-level";
+    
+    // Is this an auto-generated chart?
+    // If true, export will generate a manifest.json for it
+    generated : boolean = false;
     constructor() {
     }
 
     validateLevel(level : BBLevel, reasonHandler : ReasonHandler) {
-        let levelVersion = level?.properties?.formatversion ?? -1;
+        let levelVersion = this.manifest?.properties.formatversion ?? (level?.properties?.formatversion ?? -1);
         if (!SupportedVersions.includes(levelVersion)) {
             reasonHandler(`Unsupported level format version ${levelVersion}`);
             return false;
@@ -77,14 +81,27 @@ export class BBLevelLoader {
     */
 
     async loadMusic(soundFile: FileSystemEntry, loadFailed : ReasonHandler) : Promise<boolean> {
+        this.generated = true;
         let soundFileName = soundFile.name;
+        this.basename = soundFileName.substr(0, soundFileName.lastIndexOf('.'));
         let variant = {
-            name: "main"
+            name: "main",
+            difficulty: 0,
+            display: "main",
+            charter: "",
         };
         this.manifest = {
+            properties: {
+                formatversion: 14
+            },
             metadata: {
+                bg: false,
                 songName: soundFileName,
-                description: "Timing scaffold created with the BeatBlock Aligner tool."
+                description: "Timing scaffold created with the BeatBlock Aligner tool.",
+                charter: "Charter",
+                artist: "Artist",
+                artistLink: "",
+                difficulty: 0
             },
             defaultVariant : "main",
             variants: [variant]
@@ -108,7 +125,9 @@ export class BBLevelLoader {
         }
         let level : BBLevel = {
                 properties: {
-                    formatversion: 14
+                    offset: 8,
+                    formatversion: 14,
+                    speed: 70
                 },
                 events: [playEvent, endSongEvent]
         };
@@ -124,7 +143,7 @@ export class BBLevelLoader {
         this.variants.push({
             name: "main",
             levelFileName: "level.json",
-            chartFileName: "chart.json",
+            chartFileName: "chart-main.json",
             level, chart,
             sounds,
             data:variant
@@ -274,10 +293,15 @@ export class BBLevelLoader {
          * at all times the latest, up to date, stringifyable beatblock level/chart representations,
          * so saving is as simple as exporting them to json.
          */
+        let files = [
+            {name: variant.chartFileName, data: JSON.stringify(variant.chart)},
+            {name: variant.levelFileName, data: JSON.stringify(variant.level)}
+        ];
 
-        downloadZipContaining(this.basename + ".zip", [
-            {name: variant.chartFileName, data :JSON.stringify(variant.chart)},
-            {name: variant.levelFileName, data :JSON.stringify(variant.level)}
-        ]);
+        if (this.generated) {
+            files.push({name: "manifest.json", data: JSON.stringify(this.manifest)});
+        }
+
+        downloadZipContaining(this.basename + ".zip", files);
     }
 }
