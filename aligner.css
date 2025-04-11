@@ -1,0 +1,87 @@
+/*!******************************************************************!*\
+  !*** css ./node_modules/css-loader/dist/cjs.js!./src/global.css ***!
+  \******************************************************************/
+:root {
+    --main-bg-color:#2c172c;
+    --main-text-color: rgb(255, 159, 226);
+    --highlight-bg-color: #643861;
+    --highlight-text-color: #ffd4fe;
+    --info-text-color: #ffffff;
+    --main-input-bg: #512251;
+    --main-input-bg-highlight: rgb(124, 39, 124);
+    --main-input-bg-active: #130613;
+    --main-input-bg-disabled: #2e2e2e;
+    --main-input-text-disabled: #818181;
+
+    /* Consider using SASS or something like it to calc these */
+    --highlight-bg-color-hover: #a5129b;
+    --highlight-text-color-hover: #ffffff;
+    --highlight-bg-color-disabled: #6e6e6e;
+    --highlight-text-color-disabled: #9b9b9b;
+
+    --pane-interior-color: #3e243e;
+    --pane-split-color: #2c172c;
+    --tooltip-color: #1a0a1a;
+    --tooltip-color-bright: #3a153a;
+    --tooltip-color-hover: #641464;
+    --tooltip-border-color: #5a2f5a;
+}
+
+* {
+    color: var(--main-text-color);
+}
+html, body, #root {
+    display:block;
+    margin:0px;
+    padding:0px;
+    background-color: var(--main-bg-color);
+    width: 100%;
+    height: 100%;
+    
+    /* fix chrome being way overzealous with swipe gestures on laptops */
+    overscroll-behavior-x: none;
+}
+
+.move {
+    background-color: #28e6cb;
+}
+.move:hover {
+    background-color: #c8fff7;
+}
+
+.stretch {
+    background-color: #9a28e6;
+}
+.stretch:hover {
+    background-color: #efc8ff;
+}
+
+.adjust {
+    background-color: #dbdbdb;
+}
+.adjust:hover {
+    background-color: #ffffff;
+}
+
+.del {
+    background-color: #f00;
+}
+.del:hover {
+    background-color: rgb(255, 114, 114);
+}
+.dup, .spec {
+    background-color: #ff00a7;
+}
+.dup:hover, .spec:hover {
+    background-color: #ff94d9;
+}
+.desel {
+    background-color: #ffae00;
+}
+.desel:hover {
+    background-color: #ffd986;
+}
+input {
+    background-color: var(--main-input-bg);
+    color : var(--main-text-color);
+}
