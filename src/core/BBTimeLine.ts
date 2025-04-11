@@ -417,12 +417,8 @@ export class BBTimeLine  extends EventEmitter  {
     }
 
     //TODO: We need to name this setLevelOffset, because as-is this is confusing as hell
-    setOffset(noff : number | null, save : boolean = true) {
-        if (noff == null) {
-            delete this.variant.level.properties.offset;
-        } else {
-            this.variant.level.properties.offset = noff;
-        }
+    setOffset(noff : number, save : boolean = true) {
+        this.variant.level.properties.offset = noff;
         this.recomputeTimeSpace();
         if (save) {
             this.saveUndoPoint("offset", true);
