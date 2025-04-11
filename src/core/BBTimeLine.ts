@@ -48,6 +48,7 @@ export interface BBTimelineEventInitialState {
     originalBeat : number;
     originalBPM : number;
     originalDuration? : number;
+    originalOffset? : number;
 }
 
 
@@ -415,6 +416,7 @@ export class BBTimeLine  extends EventEmitter  {
         }
     }
 
+    //TODO: We need to name this setLevelOffset, because as-is this is confusing as hell
     setOffset(noff : number | null, save : boolean = true) {
         if (noff == null) {
             delete this.variant.level.properties.offset;
@@ -446,19 +448,20 @@ export class BBTimeLine  extends EventEmitter  {
         this.finishTSBPMOperation();
     }
 
-
-    /* I am not bothering to implement this as a true operation, since it cannot affect
-     * anything but the targeted event
-     */
     setEventOffset(ev : BBTimelineEvent, nofs : number | null) {
-        if (ev.event.type === "play") {
-            if (nofs == null) {
-                delete (ev.event as BBPlayEvent).offset;
-            } else {
-                (ev.event as BBPlayEvent).offset = nofs;
-            }    
-            this.saveUndoPoint("setOffset", true);
+        if (ev.event.type !== "play") {
+            return;
         }
+
+        // Definitely pushing the savemode signaling to the limits here,
+        // comments are to help clarify that.
+
+        // Begin TS offset which ***must*** be saved
+        this.beginTSOffsetOperation(ev, true);
+        // Set offset in absolute mode
+        this.continueTSOffsetOperation(nofs, true);
+        // Finish, with save mode set to replaceIfSame
+        this.finishTSOffsetOperation(true);
     }
 
     timeToBPM(time : number, mapping : TimeBeatPoint[] = this.mapping) {
@@ -583,7 +586,8 @@ export class BBTimeLine  extends EventEmitter  {
                 originalBeat: event.event.time,
                 originalTime: this.beatToTime(event.event.time),
                 originalBPM: (event.event as BBSetsBPMEvent).bpm ?? this.beatToBPM(event.event.time),
-                originalDuration : (event.event as BBDurationEvent).duration
+                originalDuration : (event.event as BBDurationEvent).duration,
+                originalOffset : (event.event as BBPlayEvent).offset
             }
             initialState.set(event, evis);
         }
@@ -631,6 +635,15 @@ export class BBTimeLine  extends EventEmitter  {
     beginTSMoveOperation(targetControl : BBTimelineEvent, pmode : BBTimelinePreserveMode,
                        snap : boolean, snapGrid : number, mustSave : boolean) {
         this.beginOperation({pmode, snap, snapGrid, targetControl, mustSave});
+        this.alertBeginOp();
+    }
+
+    beginTSOffsetOperation(targetControl : BBTimelineEvent, mustSave : boolean) {
+        // In this case, the pmode is nonsense; this operation cannot change any event timing.
+        // I just set it to "KeepTimes" since that is technically true and this is a time-domain
+        // op. I should probably just make pmode optional, but for now I am leaving thigns as
+        // they are.
+        this.beginOperation({pmode:"KeepTimes", targetControl, mustSave});
         this.alertBeginOp();
     }
 
@@ -920,6 +933,27 @@ export class BBTimeLine  extends EventEmitter  {
 
         this.restitchEventsTS();
     }
+    continueTSOffsetOperation(nofs : number | null, absolute : boolean = false) {
+        let opstate = this.operationState!;
+
+        opstate.changeSignificant = (nofs != 0) || (absolute);
+
+        let initialState = opstate.controlInitialState;
+        let ev = initialState?.event.event;
+        if (ev?.type != "play") {
+            // This shouldn't even be possible, but just in case, no-op if we are somehow
+            // trying to edit the offset for a non-play event.
+            return;
+        }
+
+        // Apply the offset
+        let originalOffset = absolute ? 0 : (initialState?.originalOffset ?? 0);
+        if (nofs == null) {
+            delete (ev as BBPlayEvent).offset;
+        } else {
+            (ev as BBPlayEvent).offset = originalOffset + nofs;
+        }
+    }
 
     finishTSAlterEvents() {
         this.restitchEventsTS();
@@ -940,6 +974,13 @@ export class BBTimeLine  extends EventEmitter  {
         let opstate = this.operationState!;
         if (opstate.changeSignificant || opstate.mustSave) {
             this.saveUndoPoint("moveControl", false);
+        }
+    }
+
+    finishTSOffsetOperation(replaceIfsame : boolean = false) {
+        let opstate = this.operationState!;
+        if (opstate.changeSignificant || opstate.mustSave) {
+            this.saveUndoPoint("moveControl", replaceIfsame);
         }
     }
 

@@ -77,6 +77,7 @@
             draggingAny = false;
             draggingBeat = false;
             draggingControl = false;
+            draggingControlOffset = false;
             return true;
         }
         if (selectedTI != null) {
@@ -165,7 +166,6 @@
     function startDrag(event : MouseEvent) {
         draggingAny = true;
         dragInitialTime = mouseToTime(event.clientX);
-        co = true;
         event.preventDefault();
         event.stopPropagation();
         dispatch("interacted");
@@ -433,6 +433,7 @@
 
     let draggingAny = false;
     let draggingControl = false;
+    let draggingControlOffset = false;
     let draggingBeat = false;
     let dragInitialTime = 0;
 
@@ -445,6 +446,7 @@
         }
         draggingControl = true;
         coTime = timeline.beatToTime(selectedControl!.event.time);
+        co = true;
         timeline.beginTSMoveOperation(selectedControl!, preserveMode, snapToBeat, beatGrid, mustSave);
         startDrag(event);
     }
@@ -458,6 +460,7 @@
         }
         draggingBeat = true;
         coTime = timeline.beatToTime(timeline.tickToBeat(selectedTI, beatGrid));
+        co = true;
         timeline.beginTSStretchOperation(selectedControl!, preserveMode, snapToBeat, beatGrid, selectedTI);
         startDrag(event);
     }
@@ -490,11 +493,30 @@
         startDragControl(event, true);
     }
 
+    function startDragControlOffset(event : MouseEvent) {
+        if (isScrollSpecial(event, true)) {
+            return;
+        }
+        if (!selectedControl || selectedControl.event.type !== "play") {
+            return;
+        }
+
+        draggingControlOffset = true;
+        timeline.beginTSOffsetOperation(selectedControl!, true);
+        startDrag(event);
+    }
+
     export function onDragEnd(event : MouseEvent) {
         if (!draggingAny) {
             return;
         }
 
+        if (draggingControlOffset) {
+            event.preventDefault();
+            draggingControlOffset = false;
+            timeline.finishTSOffsetOperation();
+            dispatch("interacted");
+        };
         if (draggingControl) {
             event.preventDefault();
             draggingControl = false;
@@ -520,6 +542,9 @@
             return;
         }
         let dragTime = mouseToTime(event.clientX);
+        if (draggingControlOffset) {
+            timeline.continueTSOffsetOperation(-1 * (dragTime - dragInitialTime));
+        }
         if (draggingControl) {
             timeline.continueTSMoveOperation(dragTime - dragInitialTime, snapToBeat);
             coTime = timeline.beatToTime(selectedControl!.event.time);
@@ -534,7 +559,9 @@
 
     export function onUndo() {
         draggingAny = false;
+        draggingControlOffset = false;
         draggingControl = false;
+        draggingBeat = false;
         co = false;
         selectedControl = null;
         selectedTI = null;
@@ -655,6 +682,9 @@
                 </div>
             {/if}
             <div class="buttonzone">
+                {#if selectedControl.event.type=="play"}
+                    <button class="adjust" on:mousedown={startDragControlOffset}>Offset</button>
+                {/if}
                 <button class="move" on:mousedown={startDragControl}>Move</button>
                 {#if bpmSetters.includes(selectedControl.event.type)}
                     <button class="del" on:click={deleteControl}>Delete</button>
